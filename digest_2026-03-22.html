@@ -8,7 +8,7 @@
   :root {
     --bg: #0f1117; --surface: #161923; --surface2: #1e2235; --border: #252a40;
     --text: #dde4f0; --muted: #7a86a0; --dim: #434d68;
-    --accent: #5aafef; --preprint: #f0a030; --classic: #b07fd4;
+    --accent: #8fd4ff; --preprint: #f0a030; --classic: #b07fd4;
     --green: #4caf50; --orange: #ff9800; --red: #e05555;
     --nav: 200px; font-size: 17px; line-height: 1.55;
   }
@@ -37,32 +37,46 @@
   h2 .cnt { font-size: 0.7rem; background: var(--surface2); color: var(--muted); padding: 0.1rem 0.45rem; border-radius: 10px; font-weight: 400; }
   .snote { font-size: 0.78rem; color: var(--muted); margin-bottom: 0.9rem; }
 
-  .exec-box { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 6px; padding: 1.1rem 1.3rem; margin-bottom: 1.2rem; font-size: 0.92rem; line-height: 1.7; }
+  .exec-box { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 6px; padding: 1.1rem 1.3rem; margin-bottom: 1.2rem; font-size: 0.88rem; line-height: 1.6; }
   .exec-box p + p { margin-top: 0.7rem; }
+  .exec-box h4.exec-topic { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); margin: 0.9rem 0 0.3rem; padding-bottom: 0.2rem; border-bottom: 1px solid var(--border); }
+  .exec-box h4.exec-topic:first-child { margin-top: 0; }
+  .exec-box ul.exec-bullets { list-style: none; margin: 0 0 0.2rem 0; padding: 0; }
+  .exec-box ul.exec-bullets li { padding: 0.25rem 0 0.25rem 0.9rem; position: relative; color: var(--text); line-height: 1.55; }
+  .exec-box ul.exec-bullets li::before { content: "–"; position: absolute; left: 0; color: var(--dim); }
+  .exec-box a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted rgba(143,212,255,0.4); }
+  .exec-box a:hover { border-bottom-color: var(--accent); }
 
   .cant-miss-list { list-style: none; margin-bottom: 0.5rem; }
-  .cant-miss-list li { display: flex; gap: 0.6rem; align-items: baseline; padding: 0.3rem 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+  .cant-miss-list li { display: flex; gap: 0.6rem; align-items: baseline; padding: 0.3rem 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; transition: background 0.1s; }
   .cant-miss-list li:last-child { border-bottom: none; }
+  .cant-miss-list li:hover { background: rgba(143,212,255,0.03); }
+  .cant-miss-list .abstract { display: none; }
+  .cant-miss-list li:hover .abstract { display: block; }
   .cm-num { font-weight: 700; color: var(--accent); min-width: 1.2rem; font-size: 0.9rem; flex-shrink: 0; }
   .cm-body { flex: 1; min-width: 0; }
   .cm-title a { color: var(--text); text-decoration: none; font-weight: 500; }
   .cm-title a:hover { color: var(--accent); text-decoration: underline; }
   .cm-meta { color: var(--muted); font-size: 0.78rem; margin-top: 0.05rem; }
 
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.85rem 1rem; margin-bottom: 0.6rem; }
-  .card:hover { border-color: rgba(90,175,239,0.35); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.85rem; margin-bottom: 0.3rem; transition: border-color 0.12s; }
+  .card:hover { border-color: rgba(143,212,255,0.35); }
+  .card .lay-summary { display: none; }
+  .card .actions { display: none; }
+  .card:hover .lay-summary { display: block; }
+  .card:hover .actions { display: flex; }
   .card.pre { border-left: 2px solid var(--preprint); }
   .card.classic { border-left: 2px solid var(--classic); }
-  .card-top { display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.3rem; }
+  .card-top { display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.1rem; }
   .card-num { font-size: 1rem; font-weight: 700; color: var(--dim); min-width: 1.4rem; line-height: 1.3; flex-shrink: 0; }
   .card-body { flex: 1; min-width: 0; }
-  .card-title { font-size: 1.0rem; font-weight: 600; line-height: 1.35; margin-bottom: 0.22rem; }
+  .card-title { font-size: 0.92rem; font-weight: 600; line-height: 1.3; margin-bottom: 0.15rem; }
   .card-title a.paper-link { color: var(--text); text-decoration: none; cursor: pointer; border-bottom: 1px dashed rgba(90,175,239,0.35); transition: color 0.12s, border-color 0.12s; }
   .card-title a.paper-link:hover { color: var(--accent); border-bottom-color: var(--accent); }
   .card-meta { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; font-size: 0.78rem; color: var(--muted); }
 
   /* Lay summary callout */
-  .lay-summary { font-size: 0.85rem; color: #8fc8f0; font-style: italic; margin: 0.32rem 0 0 1.9rem; padding: 0.28rem 0.55rem; border-left: 2px solid rgba(90,175,239,0.35); line-height: 1.45; }
+  .lay-summary { font-size: 0.85rem; color: var(--accent); font-style: italic; margin: 0.32rem 0 0 1.9rem; padding: 0.28rem 0.55rem; border-left: 2px solid rgba(90,175,239,0.35); line-height: 1.45; }
 
   .jbadge { background: rgba(90,175,239,0.1); color: var(--accent); padding: 0.06rem 0.4rem; border-radius: 3px; font-weight: 500; font-size: 0.68rem; white-space: nowrap; }
   .jbadge.pre { background: rgba(240,160,48,0.12); color: var(--preprint); }
@@ -154,7 +168,7 @@
     font-size: 0.82rem; line-height: 1.65; color: #c0cfe0;
   }
   #drawer-lay-summary {
-    font-size: 0.82rem; color: #8fc8f0; font-style: italic;
+    font-size: 0.82rem; color: var(--accent); font-style: italic;
     margin-bottom: 0.9rem; padding: 0.5rem 0.7rem;
     background: rgba(90,175,239,0.07); border-radius: 5px;
     border-left: 2px solid rgba(90,175,239,0.4); line-height: 1.5;
@@ -258,7 +272,34 @@
   
   <p class="snote" style="color: var(--accent); font-weight: 600; margin-bottom: 0.4rem;">AI Summary</p>
   <div class="exec-box">
-    <p>This digest features a strong cluster of papers on innate immune DNA sensing, with multiple studies dissecting the cGAS-STING pathway from different angles. <a href="https://doi.org/10.1073/pnas.2523334123" target="_blank" rel="noopener">Pan et al.</a> identified monkeypox virus proteins that antagonize cGAS-STING signaling, while <a href="https://doi.org/10.1016/j.celrep.2026.117065" target="_blank" rel="noopener">Huang et al.</a> demonstrated that AIM2 undergoes liquid-liquid phase separation upon dsDNA binding — directly relevant given the lab's work on MER41-regulated AIM2. <a href="https://doi.org/10.1016/j.molcel.2026.02.012" target="_blank" rel="noopener">Chen et al.</a> revealed how TREX1 ER-tethering enables penetration into ruptured micronuclei through a BAF-dependent barrier, connecting chromosomal instability to cGAS activation. The cancer-immunity interface is well represented by <a href="https://doi.org/10.1126/sciadv.aeb1611" target="_blank" rel="noopener">Beernaert et al.</a>, who showed that chromosomal instability in esophageal adenocarcinoma paradoxically recruits immunosuppressive myeloid cells through cGAS-driven chemokine signaling, and <a href="https://doi.org/10.1016/j.cell.2025.12.044" target="_blank" rel="noopener">Yao et al.</a>, who found intracellular bacteria in tumors trigger cGAS-STING-IL17B to promote metastasis.</p><p>TE biology is prominently represented across preprints and classics. <a href="https://doi.org/10.1016/j.cell.2026.02.015" target="_blank" rel="noopener">Zeng et al.</a> published a landmark Cell paper showing cell-type-specific transposon demethylation and TAD remodeling during mouse brain aging — a rich dataset for examining TE regulatory dynamics in vivo. In the classics, <a href="https://doi.org/10.1038/s41594-026-01757-z" target="_blank" rel="noopener">Cheon et al.</a> mapped TE-gene chimeric transcripts genome-wide using long-read sequencing, directly paralleling the lab's work on TE exonization and isoform discovery. <a href="https://doi.org/10.1158/1078-0432.CCR-25-3302" target="_blank" rel="noopener">Wu et al.</a> showed that locus-specific ERVK18 expression predicts immunotherapy response in small cell lung cancer, reinforcing the translational potential of TE reactivation as cancer biomarkers — a theme central to the lab's LTR10/CRC and ERV/ovarian cancer programs. Two m6A preprints — <a href="https://doi.org/10.64898/2026.03.09.710556" target="_blank" rel="noopener">Wang et al.</a> and <a href="https://doi.org/10.64898/2026.03.16.711780" target="_blank" rel="noopener">Amarante et al.</a> — demonstrate m6A regulation of viral replication and innate immunity in mumps and Zika virus respectively, connecting to the lab's m6A/TE regulation axis. The <a href="https://doi.org/10.1186/s13059-026-03944-z" target="_blank" rel="noopener">LTR8B/MER65 paper</a> in Genome Biology shows ERV elements rewiring placental gene regulation, a compelling parallel to the lab's ERV enhancer co-option paradigm.</p>
+    <h4 class="exec-topic">TE Biology</h4>
+<ul class="exec-bullets">
+<li>Cell-type-specific transposon demethylation and TAD remodeling during mouse brain aging — a rich in vivo dataset for TE regulatory dynamics — <a href="https://doi.org/10.1016/j.cell.2026.02.015" target="_blank" rel="noopener">Zeng et al.</a></li>
+<li>TE-gene chimeric transcript mapping via long-read sequencing parallels the lab's TE exonization work — <a href="https://doi.org/10.1038/s41594-026-01757-z" target="_blank" rel="noopener">Cheon et al.</a></li>
+<li>LTR8B/MER65 endogenous retroviruses rewire placental gene regulation, directly paralleling the ERV enhancer co-option paradigm — <a href="https://doi.org/10.1186/s13059-026-03944-z" target="_blank" rel="noopener">LTR8B/MER65 study</a></li>
+<li>ERVK18 expression predicts immunotherapy response in small cell lung cancer, reinforcing TE biomarker potential — <a href="https://doi.org/10.1158/1078-0432.CCR-25-3302" target="_blank" rel="noopener">Wu et al.</a></li>
+</ul>
+<h4 class="exec-topic">Immunity & Inflammation</h4>
+<ul class="exec-bullets">
+<li>AIM2 undergoes liquid-liquid phase separation upon dsDNA binding, relevant to the lab's MER41-regulated AIM2 work — <a href="https://doi.org/10.1016/j.celrep.2026.117065" target="_blank" rel="noopener">Huang et al.</a></li>
+<li>Monkeypox OPG188 antagonizes cGAS-STING antiviral signaling — <a href="https://doi.org/10.1073/pnas.2523334123" target="_blank" rel="noopener">Pan et al.</a></li>
+<li>DGCR8 controls retrotransposon-driven IFN activation by restricting endogenous dsRNA accumulation — <a href="https://doi.org/10.1093/nar/gkag190" target="_blank" rel="noopener">Gázquez-Gutiérrez et al.</a></li>
+</ul>
+<h4 class="exec-topic">Cancer</h4>
+<ul class="exec-bullets">
+<li>Chromosomal instability drives immunosuppressive myeloid recruitment via cGAS-chemokine axis in esophageal cancer — <a href="https://doi.org/10.1126/sciadv.aeb1611" target="_blank" rel="noopener">Beernaert et al.</a></li>
+<li>Long-read transcriptomics reveals isoform diversity in ovarian cancer progression, directly relevant to the lab's splicing work — <a href="https://doi.org/10.64898/2026.03.11.710989" target="_blank" rel="noopener">Liu et al.</a></li>
+</ul>
+<h4 class="exec-topic">RNA Biology</h4>
+<ul class="exec-bullets">
+<li>m6A modification on mumps virus RNA modulates replication and innate immunity, connecting to the lab's m6A/TE axis — <a href="https://doi.org/10.64898/2026.03.09.710556" target="_blank" rel="noopener">Wang et al.</a></li>
+<li>m6A methylation regulates Zika virus infection in mosquitoes via serine protease control — <a href="https://doi.org/10.64898/2026.03.16.711780" target="_blank" rel="noopener">Amarante et al.</a></li>
+</ul>
+<h4 class="exec-topic">Genomics & Methods</h4>
+<ul class="exec-bullets">
+<li>Pangenome-based structural variant detection tool relevant to the lab's pan-genome TE variation work — <a href="https://doi.org/10.1101/2025.07.11.664486" target="_blank" rel="noopener">Jiang et al.</a></li>
+<li>IFDlong: model-based isoform detection for long-read RNA-seq, applicable to the Nanopore pipeline — <a href="https://doi.org/10.1186/s13059-026-04023-z" target="_blank" rel="noopener">IFDlong</a></li>
+</ul>
   </div>
   
   <ol class="cant-miss-list">
