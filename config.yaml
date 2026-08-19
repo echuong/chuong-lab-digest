@@ -1,0 +1,292 @@
+# Literature Review Agent Configuration
+# Edit this file to customize search parameters, journals, and keywords.
+
+# Default time range in days
+days_back: 30
+
+# Number of top results to include per section
+top_n_papers: 10
+top_n_preprints: 10
+top_n_classics: 5
+
+# Minimum keyword score to include in digest
+keyword_score_threshold: 3.0
+
+# Output directory for digest reports
+output_dir: "reports"
+
+# Cache directory
+cache_dir: "cache"
+
+# Journals to track (name + RSS URL + PubMed title abbreviation for fallback)
+journals:
+  - name: "Nature"
+    rss_url: "https://www.nature.com/nature.rss"
+    pubmed_ta: "Nature"
+  - name: "Cell"
+    rss_url: "https://www.cell.com/cell/inpress.rss"
+    pubmed_ta: "Cell"
+  - name: "Science"
+    rss_url: "https://www.science.org/action/showFeed?type=etoc&feed=rss&jc=science"
+    pubmed_ta: "Science"
+  - name: "eLife"
+    rss_url: "https://elifesciences.org/rss/recent.xml"
+    pubmed_ta: "Elife"
+  - name: "Genome Research"
+    rss_url: "https://genome.cshlp.org/rss/current.xml"
+    pubmed_ta: "Genome Res"
+  - name: "Immunity"
+    rss_url: "https://www.cell.com/immunity/inpress.rss"
+    pubmed_ta: "Immunity"
+  - name: "Nature Immunology"
+    rss_url: "https://www.nature.com/ni.rss"
+    pubmed_ta: "Nat Immunol"
+  - name: "Nature Medicine"
+    rss_url: "https://www.nature.com/nm.rss"
+    pubmed_ta: "Nat Med"
+  - name: "Nature Genetics"
+    rss_url: "https://www.nature.com/ng.rss"
+    pubmed_ta: "Nat Genet"
+  - name: "Nature Biotechnology"
+    rss_url: "https://www.nature.com/nbt.rss"
+    pubmed_ta: "Nat Biotechnol"
+  - name: "Nature Methods"
+    rss_url: "https://www.nature.com/nmeth.rss"
+    pubmed_ta: "Nat Methods"
+  - name: "Molecular Cell"
+    rss_url: "https://www.cell.com/molecular-cell/inpress.rss"
+    pubmed_ta: "Mol Cell"
+  - name: "Cell Reports"
+    rss_url: "https://www.cell.com/cell-reports/inpress.rss"
+    pubmed_ta: "Cell Rep"
+  - name: "Nature Communications"
+    rss_url: "https://www.nature.com/ncomms.rss"
+    pubmed_ta: "Nat Commun"
+  - name: "Nature Reviews Genetics"
+    rss_url: "https://www.nature.com/nrg.rss"
+    pubmed_ta: "Nat Rev Genet"
+  - name: "Science Advances"
+    rss_url: "https://www.science.org/action/showFeed?type=etoc&feed=rss&jc=sciadv"
+    pubmed_ta: "Sci Adv"
+  - name: "Molecular Biology and Evolution"
+    rss_url: "https://academic.oup.com/rss/site_5168/3591.xml"
+    pubmed_ta: "Mol Biol Evol"
+  - name: "Genome Biology"
+    rss_url: "https://link.springer.com/search.rss?query=*&facet-journal-id=13059&search-within=Journal"
+    pubmed_ta: "Genome Biol"
+  - name: "PNAS"
+    rss_url: "https://www.pnas.org/action/showFeed?type=etoc&feed=rss&jc=pnas"
+    pubmed_ta: "Proc Natl Acad Sci U S A"
+  - name: "Current Biology"
+    rss_url: "https://www.cell.com/current-biology/inpress.rss"
+    pubmed_ta: "Curr Biol"
+
+# bioRxiv categories to search
+biorxiv_categories:
+  - "genetics"
+  - "genomics"
+  - "immunology"
+  - "molecular_biology"
+  - "cell_biology"
+  - "bioinformatics"
+  - "evolutionary_biology"
+
+# Journal quality blocklist (reject papers from these publishers/journals)
+journal_blocklist:
+  - "Frontiers"
+  - "MDPI"
+  - "Viruses"
+  - "Cells"
+  - "Genes"
+  - "International Journal of Molecular Sciences"
+  - "Biology"
+  - "Biomolecules"
+  - "Biomedicines"
+
+# Keyword tiers for relevance scoring
+# Each tier has a weight and a list of terms (case-insensitive)
+# Title hits are multiplied by title_multiplier
+keyword_tiers:
+  tier1_core:
+    weight: 10
+    title_multiplier: 3
+    terms:
+      - "transposable element"
+      - "transposon"
+      - "endogenous retrovirus"
+      - "ERV"
+      - "HERV"
+      - "SINE"
+      - "LINE-1"
+      - "LINE1"
+      - "Alu element"
+      - "LTR element"
+      - "LTR retrotransposon"
+      - "IFNAR2"
+      - "LTR10"
+      - "MER41"
+      - "TE exonization"
+      - "retrotransposon"
+      - "repeat element"
+      - "transposable"
+      - "solo LTR"
+      - "LTR18"
+      - "LTR10"
+      - "TE-derived enhancer"
+      - "TE co-option"
+      - "TE exaptation"
+      - "viral mimicry"
+      - "KRAB zinc finger"
+      - "TRIM28"
+      - "KAP1"
+
+  tier2_biology:
+    weight: 7
+    title_multiplier: 2
+    terms:
+      - "innate immune"
+      - "innate immunity"
+      - "type I interferon"
+      - "IFN-beta"
+      - "IFN-alpha"
+      - "interferon signaling"
+      - "interferon response"
+      - "cis-regulatory element"
+      - "cis-regulatory"
+      - "enhancer"
+      - "alternative splicing"
+      - "exon skipping"
+      - "isoform"
+      - "exonization"
+      - "neo-enhancer"
+      - "super-enhancer"
+      - "cryptic exon"
+      - "poison exon"
+      - "intron retention"
+      - "alternative polyadenylation"
+      - "intronic polyadenylation"
+      - "decoy receptor"
+      - "soluble receptor"
+      - "dominant-negative isoform"
+      - "splice-switching"
+      - "antisense oligonucleotide"
+      - "TE-derived"
+
+  tier3_methods:
+    weight: 5
+    title_multiplier: 2
+    terms:
+      - "ATAC-seq"
+      - "ChIP-seq"
+      - "CUT&Tag"
+      - "CUT&RUN"
+      - "long-read sequencing"
+      - "long-read RNA"
+      - "long-read transcriptomics"
+      - "Nanopore"
+      - "Oxford Nanopore"
+      - "CRISPR screen"
+      - "Perturb-seq"
+      - "cancer epigenomics"
+      - "m6A"
+      - "RNA methylation"
+      - "N6-methyladenosine"
+      - "pan-genome"
+      - "graph genome"
+      - "METTL3"
+      - "AlphaGenome"
+      - "functional genomics"
+      - "non-coding variant"
+      - "saturation genome editing"
+      - "saturation mutagenesis"
+      - "MPRA"
+      - "massively parallel reporter"
+      - "single-cell multiome"
+      - "scATAC"
+      - "Fiber-seq"
+      - "Pore-C"
+      - "variant effect prediction"
+      - "sequence-to-function"
+      - "Enformer"
+      - "Borzoi"
+      - "deep learning genomics"
+
+  tier4_context:
+    weight: 3
+    title_multiplier: 1.5
+    terms:
+      - "non-coding RNA"
+      - "chromatin accessibility"
+      - "transcription factor binding"
+      - "comparative genomics"
+      - "TE annotation"
+      - "RepeatMasker"
+      - "genome evolution"
+      - "gene regulatory"
+      - "epigenomics"
+      - "regulatory evolution"
+      - "chromatin remodeling"
+      - "open chromatin"
+      - "regulatory element"
+      - "promoter"
+
+  gene_specific:
+    weight: 8
+    title_multiplier: 3
+    terms:
+      - "IL18R1"
+      - "IL2RB"
+      - "XRCC4"
+      - "ATG12"
+      - "IKBKE"
+      - "MECP2"
+      - "TAF1"
+      - "XDP"
+      - "SP140"
+      - "IFNAR1"
+      - "cGAS"
+      - "STING"
+      - "AIM2"
+      - "APOL1"
+      - "IL18"
+      - "IL-18"
+      - "TIPARP"
+      - "PARP7"
+      - "EHMT1"
+      - "EHMT2"
+      - "G9A"
+      - "OAS2"
+      - "METTL3"
+      - "IL2RB"
+
+  # Translational / therapeutic angle (viral mimicry, epigenetic therapy, immunotherapy)
+  tier_therapeutic:
+    weight: 5
+    title_multiplier: 2
+    terms:
+      - "immune checkpoint"
+      - "immunotherapy response"
+      - "checkpoint blockade"
+      - "epigenetic therapy"
+      - "DNA methyltransferase inhibitor"
+      - "azacitidine"
+      - "decitabine"
+      - "hypomethylating agent"
+      - "EZH2 inhibitor"
+      - "G9A inhibitor"
+      - "antitumor immunity"
+      - "tumor immune evasion"
+
+  species_context:
+    weight: 4
+    title_multiplier: 2
+    terms:
+      - "primate-specific"
+      - "human-specific"
+      - "bat immunity"
+      - "bat genome"
+      - "bovine genome"
+      - "ruminant"
+      - "cross-species"
+      - "species-specific"
+      - "mammalian evolution"

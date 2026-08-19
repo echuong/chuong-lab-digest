@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Digest {{ report.generated_date.strftime('%Y-%m-%d') }}</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #161923; --surface2: #1e2235; --border: #252a40;
+    --text: #dde4f0; --muted: #7a86a0; --dim: #434d68;
+    --accent: #8fd4ff; --preprint: #f0a030;
+    --green: #4caf50; --orange: #ff9800; --red: #e05555;
+    --nav: 200px; --pane: 380px; font-size: 19px; line-height: 1.55;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+  nav { position: fixed; top: 0; left: 0; width: var(--nav); height: 100vh; background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; padding: 1rem 0.8rem; z-index: 100; font-size: 0.78rem; }
+  nav .logo { font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); font-size: 0.65rem; margin-bottom: 0.2rem; }
+  nav .date { color: var(--muted); font-size: 0.72rem; margin-bottom: 1rem; }
+  nav h4 { font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); margin: 0.9rem 0 0.3rem; }
+  nav a { display: block; color: var(--muted); text-decoration: none; padding: 0.18rem 0.4rem; border-radius: 3px; margin-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background 0.1s, color 0.1s; }
+  nav a:hover { background: var(--surface2); color: var(--text); }
+
+  main { margin-left: var(--nav); margin-right: var(--pane); }
+  .banner { background: linear-gradient(135deg, #0c1e32 0%, #141826 55%, #1a0d28 100%); border-bottom: 1px solid var(--border); padding: 1.8rem 1.8rem 1.4rem; }
+  .banner h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .banner .sub { font-size: 0.8rem; color: var(--muted); margin-bottom: 1rem; }
+  .chips { display: flex; gap: 0.8rem; flex-wrap: wrap; }
+  .chip { background: rgba(90,175,239,0.1); border: 1px solid rgba(90,175,239,0.2); border-radius: 5px; padding: 0.25rem 0.7rem; font-size: 0.75rem; color: var(--accent); }
+  .chip strong { color: var(--text); }
+
+  section { padding: 1.4rem 1.8rem 0; }
+  section:last-child { padding-bottom: 2.5rem; }
+  .divider { height: 1px; background: var(--border); margin: 0 1.8rem; }
+  h2 { font-size: 1rem; font-weight: 600; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+  h2 .cnt { font-size: 0.7rem; background: var(--surface2); color: var(--muted); padding: 0.1rem 0.45rem; border-radius: 10px; font-weight: 400; }
+
+  /* ─── Curated entries ────────────────────────────────────────────────── */
+  .topic-heading {
+    font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--accent); margin: 1.2rem 0 0.4rem; padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 0.4rem;
+  }
+  .topic-heading:first-child { margin-top: 0; }
+  .topic-heading .cnt { font-size: 0.65rem; background: var(--surface2); color: var(--muted); padding: 0.06rem 0.38rem; border-radius: 8px; font-weight: 400; }
+
+  .entry {
+    padding: 0.4rem 0.6rem; border-radius: 5px; cursor: pointer;
+    border-left: 2px solid transparent; transition: background 0.1s, border-color 0.1s;
+    margin-bottom: 0.15rem;
+  }
+  .entry:hover, .entry.active { background: var(--surface); border-left-color: var(--accent); }
+  .entry.is-preprint:hover, .entry.is-preprint.active { border-left-color: var(--preprint); }
+  .entry-title-row { font-size: 0.84rem; font-weight: 500; line-height: 1.35; color: var(--text); }
+  .entry-meta { font-size: 0.76rem; color: var(--muted); margin-top: 0.12rem; }
+  .entry-finding { font-size: 0.76rem; color: var(--muted); margin-top: 0.15rem; line-height: 1.4; }
+
+  /* ─── Uniform "full text" link (used in curated entries, TOC rows, detail) ─ */
+  .fulltext-link {
+    display: inline-flex; align-items: center; gap: 0.12rem; white-space: nowrap;
+    font-size: 0.66rem; font-weight: 500; text-decoration: none; flex-shrink: 0;
+    color: var(--accent); background: rgba(90,175,239,0.1);
+    border: 1px solid rgba(90,175,239,0.25); border-radius: 4px;
+    padding: 0.04rem 0.4rem; transition: opacity 0.1s;
+  }
+  .fulltext-link:hover { opacity: 0.7; text-decoration: none; }
+  .fulltext-link.pre { color: var(--preprint); background: rgba(240,160,48,0.1); border-color: rgba(240,160,48,0.25); }
+
+  /* ─── Read-history demarcation ───────────────────────────────────────────── */
+  .entry.visited, .toc-entry.visited { opacity: 0.62; }
+  .entry.visited .entry-title-row::before,
+  .toc-entry.visited .toc-ptitle::before {
+    content: "✓"; color: var(--green); font-weight: 700; margin-right: 0.3rem; font-size: 0.72em;
+  }
+  body.hide-seen .entry.visited, body.hide-seen .toc-entry.visited { display: none; }
+
+  .history-bar { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.9rem; flex-wrap: wrap; }
+  .hist-stat { font-size: 0.72rem; color: var(--muted); }
+  .hist-stat strong { color: var(--green); }
+  .hist-btn {
+    font-size: 0.68rem; color: var(--muted); background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 4px; padding: 0.12rem 0.55rem;
+    cursor: pointer; transition: color 0.1s, border-color 0.1s;
+  }
+  .hist-btn:hover { color: var(--text); border-color: var(--accent); }
+  .hist-btn.on { color: var(--accent); border-color: var(--accent); }
+
+  .show-more-btn {
+    background: none; border: none; color: var(--accent); font-size: 0.72rem;
+    cursor: pointer; padding: 0.3rem 0.6rem; margin: 0.2rem 0;
+    opacity: 0.7; transition: opacity 0.1s;
+  }
+  .show-more-btn:hover { opacity: 1; text-decoration: underline; }
+
+  /* ─── Detail pane (fixed right sidebar) ──────────────────────────────── */
+  .detail-pane {
+    position: fixed; top: 0; right: 0; width: var(--pane); height: 100vh;
+    overflow-y: auto; background: var(--surface); border-left: 1px solid var(--border);
+    padding: 1rem; font-size: 0.82rem; z-index: 50;
+  }
+  .detail-placeholder { color: var(--dim); font-style: italic; text-align: center; margin-top: 40%; font-size: 0.85rem; }
+  .detail-content { display: none; }
+  #detail-title { font-size: 0.95rem; font-weight: 600; line-height: 1.35; margin-bottom: 0.5rem; color: var(--text); }
+  #detail-authors { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.7rem; line-height: 1.45; }
+  #detail-summary {
+    font-size: 0.82rem; color: var(--accent); line-height: 1.55;
+    margin-bottom: 0.8rem; padding: 0.5rem 0.7rem;
+    background: rgba(143,212,255,0.06); border-radius: 5px;
+    border-left: 2px solid rgba(143,212,255,0.3);
+  }
+  #detail-abstract-label { font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin-bottom: 0.35rem; }
+  #detail-abstract { font-size: 0.8rem; color: #b0c0d8; line-height: 1.6; margin-bottom: 0.8rem; }
+  #detail-actions { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+
+  .btn { font-size: 0.68rem; padding: 0.18rem 0.5rem; border-radius: 4px; text-decoration: none; font-weight: 500; display: inline-block; transition: opacity 0.1s; cursor: pointer; border: none; background: none; }
+  .btn:hover { opacity: 0.75; }
+  .btn-a { background: rgba(90,175,239,0.1); color: var(--accent); border: 1px solid rgba(90,175,239,0.25); }
+  .btn-a.pre { background: rgba(240,160,48,0.1); color: var(--preprint); border-color: rgba(240,160,48,0.25); }
+  .btn-id { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); font-family: monospace; font-size: 0.63rem; }
+
+  .jbadge { background: rgba(90,175,239,0.1); color: var(--accent); padding: 0.06rem 0.4rem; border-radius: 3px; font-weight: 500; font-size: 0.68rem; white-space: nowrap; }
+  .jbadge.pre { background: rgba(240,160,48,0.12); color: var(--preprint); }
+
+  /* ─── Journal TOCs ───────────────────────────────────────────────────── */
+  .toc-grid { display: grid; gap: 0.4rem; }
+  details.toc { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  details.toc summary { padding: 0.55rem 1rem; font-weight: 600; font-size: 0.82rem; display: flex; align-items: center; gap: 0.4rem; cursor: pointer; list-style: none; transition: background 0.1s; }
+  details.toc summary::-webkit-details-marker { display: none; }
+  details.toc summary:hover { background: rgba(90,175,239,0.04); }
+  details.toc[open] summary { border-bottom: 1px solid var(--border); }
+  .tarrow { font-size: 0.58rem; color: var(--dim); display: inline-block; transition: transform 0.15s; }
+  details.toc[open] .tarrow { transform: rotate(90deg); }
+  .src-badge { font-size: 0.6rem; padding: 0.06rem 0.32rem; border-radius: 3px; font-weight: 600; }
+  .src-rss { background: rgba(76,175,80,0.12); color: #66bb6a; }
+  .src-pm { background: rgba(90,175,239,0.1); color: var(--accent); }
+  .tcnt { font-size: 0.65rem; background: var(--surface2); color: var(--muted); padding: 0.06rem 0.38rem; border-radius: 8px; font-weight: 400; margin-left: auto; }
+  .toc-list { list-style: none; }
+  .toc-list li { padding: 0.3rem 1rem; border-bottom: 1px solid rgba(37,42,64,0.5); font-size: 0.77rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; cursor: pointer; transition: background 0.1s; }
+  .toc-list li:last-child { border-bottom: none; }
+  .toc-list li:hover, .toc-list li.active { background: rgba(143,212,255,0.06); }
+  .toc-info { flex: 1; min-width: 0; }
+  .toc-ptitle { color: var(--text); display: flex; align-items: baseline; gap: 0.3rem; }
+  .toc-link { color: var(--accent); text-decoration: none; font-size: 0.65rem; opacity: 0.5; flex-shrink: 0; transition: opacity 0.1s; }
+  .toc-link:hover { opacity: 1; text-decoration: underline; }
+  .toc-auth { color: var(--dim); font-size: 0.68rem; margin-top: 0.03rem; }
+  .toc-dt { color: var(--dim); font-size: 0.65rem; white-space: nowrap; min-width: 45px; text-align: right; }
+  .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 2px; vertical-align: middle; flex-shrink: 0; }
+  .dot.g { background: var(--green); }
+  .dot.o { background: var(--orange); }
+  .toc-empty { padding: 0.65rem 1rem; color: var(--dim); font-size: 0.76rem; font-style: italic; }
+  .toc-summary {
+    padding: 0.5rem 1rem; font-size: 0.75rem; font-style: italic; line-height: 1.5;
+    color: var(--muted); background: rgba(143,212,255,0.04);
+    border-bottom: 1px solid rgba(37,42,64,0.5);
+  }
+  .legend { font-size: 0.74rem; color: var(--muted); margin-bottom: 0.9rem; display: flex; gap: 1.2rem; flex-wrap: wrap; }
+  .legend span { display: flex; align-items: center; gap: 0.3rem; }
+  .snote { font-size: 0.78rem; color: var(--muted); margin-bottom: 0.9rem; }
+
+  /* ─── Executive summary ──────────────────────────────────────────────── */
+  .exec-box {
+    background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    border-radius: 6px; padding: 1rem 1.2rem; margin-bottom: 0.5rem; font-size: 0.84rem; line-height: 1.65;
+  }
+  .exec-box p { margin-bottom: 0.6rem; }
+  .exec-box p:last-child { margin-bottom: 0; }
+  .exec-box a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted rgba(143,212,255,0.4); }
+  .exec-box a:hover { border-bottom-color: var(--accent); }
+
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  @media (max-width: 900px) {
+    main { margin-right: 0; }
+    .detail-pane { position: fixed; bottom: 0; left: 0; right: 0; width: 100%; height: 45vh; border-left: none; border-top: 1px solid var(--border); transform: translateY(100%); transition: transform 0.22s ease; z-index: 150; }
+    .detail-pane.mobile-open { transform: translateY(0); }
+    .detail-pane .detail-close-mobile { display: block; }
+  }
+  @media (min-width: 901px) {
+    .detail-close-mobile { display: none !important; }
+  }
+  @media (max-width: 720px) { :root { --nav: 0px; } nav { display: none; } main { margin-left: 0; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">Chuong Lab</div>
+  <div class="date">{{ report.generated_date.strftime('%b %d, %Y') }}</div>
+  <h4>Topics</h4>
+  {% if report.stats.topic_groups_resolved %}
+  {% for topic in report.stats.topic_groups_resolved.keys() %}
+  <a href="#topic-{{ topic|slug }}">{{ topic }}</a>
+  {% endfor %}
+  {% else %}
+  <a href="#curated">Highlights</a>
+  {% endif %}
+  <h4>Browse</h4>
+  <a href="#tocs">📚 Journal TOCs</a>
+  <h4>Jump to Journal</h4>
+  {% for toc in report.journal_tocs | impact_sort %}{% if toc.papers %}
+  <a href="#j-{{ toc.journal_name|lower|replace(' ', '-')|replace('/', '-') }}">{{ toc.journal_name }}</a>
+  {% endif %}{% endfor %}
+</nav>
+
+<main>
+
+<div class="banner">
+  <h1>Literature Digest</h1>
+  <div class="sub">{{ report.period_start.strftime('%b %d') }} – {{ report.period_end.strftime('%b %d, %Y') }} &nbsp;·&nbsp; Chuong Lab, CU Boulder</div>
+  <div class="chips">
+    <div class="chip"><strong>{{ report.stats.total_papers_scanned }}</strong> scanned</div>
+    <div class="chip"><strong>{{ report.stats.total_preprints }}</strong> preprints</div>
+    <div class="chip"><strong>{{ report.stats.journals_with_content }}</strong>/{{ report.stats.journals_checked }} journals</div>
+    <div class="chip">{{ report.stats.scoring_mode }}</div>
+  </div>
+  <div class="history-bar">
+    <span class="hist-stat"><strong id="seen-count">0</strong> seen on this page</span>
+    <button class="hist-btn" id="toggle-seen">Hide seen</button>
+    <button class="hist-btn" id="reset-seen">Reset history</button>
+  </div>
+</div>
+
+{% if report.stats.executive_summary %}
+<section id="summary">
+  <h2>AI Summary</h2>
+  <div class="exec-box">
+    {{ report.stats.executive_summary|paragraphs }}
+  </div>
+</section>
+{% endif %}
+
+<!-- ─── Curated Highlights ──────────────────────────────────────────────── -->
+<section id="curated">
+  <h2>Curated Highlights
+    {% set total_curated = [] %}
+    {% if report.stats.topic_groups_resolved %}
+      {% for t, pp in report.stats.topic_groups_resolved.items() %}{% if total_curated.append(pp|length) %}{% endif %}{% endfor %}
+      <span class="cnt">{{ total_curated|sum }} papers · {{ report.stats.topic_groups_resolved|length }} topics</span>
+    {% else %}
+      <span class="cnt">{{ report.top_papers|length + report.top_preprints|length }} papers</span>
+    {% endif %}
+  </h2>
+
+  {% if report.stats.topic_groups_resolved %}
+    {% for topic, papers in report.stats.topic_groups_resolved.items() %}
+    <div class="topic-group" id="topic-{{ topic|slug }}">
+      <div class="topic-heading">{{ topic }} <span class="cnt">{{ papers|length }}</span></div>
+      {% for paper in papers[:5] %}
+      <div class="entry{% if paper.is_preprint %} is-preprint{% endif %}" data-key="{{ paper.url }}">
+        <div class="entry-title-row">{{ paper.title }}</div>
+        <div class="entry-meta">{{ paper.pub_date.strftime('%b %d, %Y') }} · {{ paper.abbrev_authors }} · {% if paper.is_preprint %}<span style="color:var(--preprint);font-weight:600">{{ paper.journal }}</span>{% else %}<span style="color:var(--accent);font-weight:600">{{ paper.journal }}</span>{% endif %}</div>
+        <div class="entry-finding">{% if paper.finding %}{{ paper.finding }} {% endif %}<a href="{{ paper.url }}" target="_blank" rel="noopener" class="fulltext-link{% if paper.is_preprint %} pre{% endif %}" onclick="event.stopPropagation()">{% if paper.is_preprint %}Preprint{% else %}Full text{% endif %} ↗</a></div>
+      </div>
+      {% endfor %}
+      {% if papers|length > 5 %}
+      <button class="show-more-btn" onclick="toggleMore(this)">Show {{ papers|length - 5 }} more…</button>
+      <div class="topic-overflow" style="display:none">
+        {% for paper in papers[5:] %}
+        <div class="entry{% if paper.is_preprint %} is-preprint{% endif %}" data-key="{{ paper.url }}">
+          <div class="entry-title-row">{{ paper.title }}</div>
+          <div class="entry-meta">{{ paper.pub_date.strftime('%b %d, %Y') }} · {{ paper.abbrev_authors }} · {% if paper.is_preprint %}<span style="color:var(--preprint);font-weight:600">{{ paper.journal }}</span>{% else %}<span style="color:var(--accent);font-weight:600">{{ paper.journal }}</span>{% endif %}</div>
+          <div class="entry-finding">{% if paper.finding %}{{ paper.finding }} {% endif %}<a href="{{ paper.url }}" target="_blank" rel="noopener" class="fulltext-link{% if paper.is_preprint %} pre{% endif %}" onclick="event.stopPropagation()">{% if paper.is_preprint %}Preprint{% else %}Full text{% endif %} ↗</a></div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="topic-heading">Top Journal Papers <span class="cnt">{{ report.top_papers|length }}</span></div>
+    {% for paper in report.top_papers %}
+    <div class="entry" data-key="{{ paper.url }}">
+      <div class="entry-title-row">{{ paper.title }}</div>
+      <div class="entry-meta">{{ paper.pub_date.strftime('%b %d, %Y') }} · {{ paper.abbrev_authors }} · <span style="color:var(--accent);font-weight:600">{{ paper.journal }}</span></div>
+      <div class="entry-finding">{% if paper.finding %}{{ paper.finding }} {% endif %}<a href="{{ paper.url }}" target="_blank" rel="noopener" class="fulltext-link{% if paper.is_preprint %} pre{% endif %}" onclick="event.stopPropagation()">{% if paper.is_preprint %}Preprint{% else %}Full text{% endif %} ↗</a></div>
+    </div>
+    {% endfor %}
+    <div class="topic-heading" style="margin-top:1.2rem;">Top Preprints <span class="cnt">{{ report.top_preprints|length }}</span></div>
+    {% for paper in report.top_preprints %}
+    <div class="entry is-preprint" data-key="{{ paper.url }}">
+      <div class="entry-title-row">{{ paper.title }}</div>
+      <div class="entry-meta">{{ paper.pub_date.strftime('%b %d, %Y') }} · {{ paper.abbrev_authors }} · <span style="color:var(--preprint);font-weight:600">{{ paper.journal }}</span></div>
+      <div class="entry-finding">{% if paper.finding %}{{ paper.finding }} {% endif %}<a href="{{ paper.url }}" target="_blank" rel="noopener" class="fulltext-link{% if paper.is_preprint %} pre{% endif %}" onclick="event.stopPropagation()">{% if paper.is_preprint %}Preprint{% else %}Full text{% endif %} ↗</a></div>
+    </div>
+    {% endfor %}
+  {% endif %}
+</section>
+<div class="divider"></div>
+
+<!-- ─── Journal TOCs ────────────────────────────────────────────────────── -->
+<section id="tocs">
+  <h2>📚 Journal TOCs <span class="cnt">{{ report.stats.journals_with_content }}/{{ report.stats.journals_checked }} journals · {{ report.stats.total_journal_papers }} articles</span></h2>
+  <div class="legend">
+    <span><span class="src-badge src-rss">RSS</span> Direct RSS feed</span>
+    <span><span class="src-badge src-pm">PM</span> PubMed (RSS unavailable)</span>
+    <span><span class="dot g"></span> High relevance</span>
+    <span><span class="dot o"></span> Moderate relevance</span>
+  </div>
+  <div class="toc-grid">
+    {% for toc in report.journal_tocs | impact_sort %}
+    {% set is_pm = toc.journal_name in report.stats.pubmed_only %}
+    {% set jsummary = report.stats.journal_summaries.get(toc.journal_name) %}
+    <details class="toc" id="j-{{ toc.journal_name|lower|replace(' ', '-')|replace('/', '-') }}">
+      <summary>
+        <span class="tarrow">▶</span>
+        {{ toc.journal_name }}
+        <span class="src-badge {% if is_pm %}src-pm{% else %}src-rss{% endif %}">{% if is_pm %}PM{% else %}RSS{% endif %}</span>
+        <span class="tcnt">{{ toc.papers|length }}</span>
+      </summary>
+      {% if jsummary %}<div class="toc-summary">{{ jsummary }}</div>{% endif %}
+      {% if toc.papers %}
+      <ul class="toc-list">
+        {% for paper in toc.papers | sort(attribute='pub_date', reverse=True) %}
+        {% set sc = paper.keyword_score %}
+        <li class="toc-entry" data-key="{{ paper.url }}">
+          <div class="toc-info">
+            <div class="toc-ptitle">
+              {% if sc >= 15 %}<span class="dot g" title="Relevance {{ sc|int }}"></span>
+              {% elif sc >= 5 %}<span class="dot o" title="Relevance {{ sc|int }}"></span>{% endif %}
+              <span>{{ paper.title }}</span>
+              <a href="{{ paper.url }}" target="_blank" rel="noopener" class="fulltext-link" onclick="event.stopPropagation()">Full text ↗</a>
+            </div>
+            <div class="toc-auth">{{ paper.short_authors }}</div>
+          </div>
+          <div class="toc-dt">{{ paper.pub_date.strftime('%b %d') }}</div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<div class="toc-empty">No articles this period.</div>{% endif %}
+    </details>
+    {% endfor %}
+  </div>
+</section>
+
+</main>
+
+<!-- ─── Detail pane (fixed right sidebar, outside main) ────────────────── -->
+<aside class="detail-pane" id="detail-pane">
+  <button class="detail-close-mobile btn" onclick="document.getElementById('detail-pane').classList.remove('mobile-open')" style="position:absolute;top:0.5rem;right:0.5rem;color:var(--muted);font-size:1.1rem;">✕</button>
+  <div class="detail-placeholder" id="detail-placeholder">Hover over a paper to see details</div>
+  <div class="detail-content" id="detail-content" style="display:none">
+    <div id="detail-title"></div>
+    <div id="detail-authors"></div>
+    <div id="detail-summary"></div>
+    <div id="detail-abstract-label">ABSTRACT</div>
+    <div id="detail-abstract"></div>
+    <div id="detail-actions"></div>
+  </div>
+</aside>
+
+<!-- ─── Paper data islands ─────────────────────────────────────────────── -->
+<script type="application/json" id="papers-data-curated">
+[
+{% set ns = namespace(first=true) %}
+{% if report.stats.topic_groups_resolved %}
+  {% for topic, papers in report.stats.topic_groups_resolved.items() %}
+    {% for p in papers %}
+{% if not ns.first %},{% endif %}{% set ns.first = false %}
+{"key":{{ p.url|tojson }},"doi":{{ p.doi|tojson }},"title":{{ p.title|tojson }},"authors":{{ p.authors|tojson }},"short_authors":{{ p.short_authors|tojson }},"journal":{{ p.journal|tojson }},"date":{{ p.pub_date.strftime('%b %d, %Y')|tojson }},"abstract":{{ p.abstract|tojson }},"finding":{{ p.finding|tojson }},"summary":{{ p.summary|tojson }},"url":{{ p.url|tojson }},"pmid":{{ (p.pmid or '')|tojson }},"is_preprint":{{ p.is_preprint|tojson }}}
+    {% endfor %}
+  {% endfor %}
+{% else %}
+  {% for p in report.top_papers + report.top_preprints %}
+{% if not ns.first %},{% endif %}{% set ns.first = false %}
+{"key":{{ p.url|tojson }},"doi":{{ p.doi|tojson }},"title":{{ p.title|tojson }},"authors":{{ p.authors|tojson }},"short_authors":{{ p.short_authors|tojson }},"journal":{{ p.journal|tojson }},"date":{{ p.pub_date.strftime('%b %d, %Y')|tojson }},"abstract":{{ p.abstract|tojson }},"finding":{{ p.finding|tojson }},"summary":{{ p.summary|tojson }},"url":{{ p.url|tojson }},"pmid":{{ (p.pmid or '')|tojson }},"is_preprint":{{ p.is_preprint|tojson }}}
+  {% endfor %}
+{% endif %}
+]
+</script>
+
+<script type="application/json" id="papers-data-toc">
+[
+{% set ns2 = namespace(first=true) %}
+{% for toc in report.journal_tocs %}
+  {% for p in toc.papers %}
+{% if not ns2.first %},{% endif %}{% set ns2.first = false %}
+{"key":{{ p.url|tojson }},"doi":{{ p.doi|tojson }},"title":{{ p.title|tojson }},"authors":{{ p.authors|tojson }},"short_authors":{{ p.short_authors|tojson }},"journal":{{ p.journal|tojson }},"date":{{ p.pub_date.strftime('%b %d, %Y')|tojson }},"abstract":{{ p.abstract|tojson }},"url":{{ p.url|tojson }},"pmid":{{ (p.pmid or '')|tojson }},"is_preprint":false,"finding":"","summary":""}
+  {% endfor %}
+{% endfor %}
+]
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  // ─── Build URL-keyed lookup from data islands ─────────────────────────
+  var paperMap = {};
+
+  function loadIsland(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    try {
+      var parsed = JSON.parse(el.textContent);
+      parsed.forEach(function (p) {
+        var k = p.key || p.url;
+        if (!paperMap[k]) paperMap[k] = p;
+      });
+      console.log('[digest] Loaded ' + parsed.length + ' papers from ' + id);
+    } catch (e) { console.error('[digest] Parse error for ' + id + ':', e); }
+  }
+
+  loadIsland('papers-data-curated');
+  loadIsland('papers-data-toc');
+  console.log('[digest] paperMap has ' + Object.keys(paperMap).length + ' entries');
+
+  var detailPane = document.getElementById('detail-pane');
+  var detailContent = document.getElementById('detail-content');
+  var placeholder = document.getElementById('detail-placeholder');
+  var debounceTimer = null;
+  var activeEl = null;  // tracks currently highlighted element (entry or toc li)
+
+  // ─── Read history (localStorage, keyed by article URL) ─────────────────
+  // Persists across digests: a paper clicked in a prior week shows as "seen"
+  // when it reappears, because the key is the stable article URL.
+  var STORAGE_KEY = 'chuong-digest-visited';
+  var currentDetailKey = null;
+  var keyEls = {};  // data-key → [elements sharing that key]
+  document.querySelectorAll('[data-key]').forEach(function (el) {
+    var k = el.getAttribute('data-key');
+    if (!k) return;
+    (keyEls[k] = keyEls[k] || []).push(el);
+  });
+
+  function loadVisited() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch (e) { return new Set(); }
+  }
+  function saveVisited() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(visited))); }
+    catch (e) { /* storage blocked/full — degrade silently */ }
+  }
+  var visited = loadVisited();
+
+  function updateSeenCount() {
+    var n = 0;
+    Object.keys(keyEls).forEach(function (k) { if (visited.has(k)) n++; });
+    var el = document.getElementById('seen-count');
+    if (el) el.textContent = n;
+  }
+  function applyVisitedClass(k) {
+    (keyEls[k] || []).forEach(function (el) { el.classList.add('visited'); });
+  }
+  function markVisited(k) {
+    if (!k || visited.has(k)) return;
+    visited.add(k);
+    saveVisited();
+    applyVisitedClass(k);
+    updateSeenCount();
+  }
+  // Paint anything already seen, then wire the history controls.
+  visited.forEach(function (k) { applyVisitedClass(k); });
+  updateSeenCount();
+
+  var toggleSeenBtn = document.getElementById('toggle-seen');
+  if (toggleSeenBtn) toggleSeenBtn.addEventListener('click', function () {
+    var on = document.body.classList.toggle('hide-seen');
+    toggleSeenBtn.classList.toggle('on', on);
+    toggleSeenBtn.textContent = on ? 'Show seen' : 'Hide seen';
+  });
+  var resetSeenBtn = document.getElementById('reset-seen');
+  if (resetSeenBtn) resetSeenBtn.addEventListener('click', function () {
+    visited = new Set();
+    saveVisited();
+    document.querySelectorAll('.visited').forEach(function (el) { el.classList.remove('visited'); });
+    updateSeenCount();
+  });
+
+  function escText(str) {
+    var d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  function isMobile() {
+    return window.matchMedia('(max-width: 900px)').matches;
+  }
+
+  function clearActive() {
+    if (activeEl) { activeEl.classList.remove('active'); activeEl = null; }
+  }
+
+  // ─── Show paper in detail pane ────────────────────────────────────────
+  function showDetail(key) {
+    var p = paperMap[key];
+    if (!p) { console.warn('[digest] No paper for key:', key); return; }
+    currentDetailKey = key;
+
+    document.getElementById('detail-title').textContent = p.title;
+
+    var authStr = '';
+    if (Array.isArray(p.authors) && p.authors.length > 0) {
+      authStr = p.authors.join(', ');
+    } else {
+      authStr = p.short_authors || '';
+    }
+    document.getElementById('detail-authors').textContent = authStr;
+
+    var summaryEl = document.getElementById('detail-summary');
+    if (p.summary) {
+      summaryEl.textContent = p.summary;
+      summaryEl.style.display = '';
+    } else {
+      summaryEl.style.display = 'none';
+    }
+
+    document.getElementById('detail-abstract').textContent = p.abstract || 'No abstract available.';
+
+    var html = '<a href="' + escText(p.url) + '" target="_blank" rel="noopener" class="btn btn-a' + (p.is_preprint ? ' pre' : '') + '" data-visit-detail="1">' + (p.is_preprint ? 'Preprint' : 'Full text') + ' ↗</a>';
+    if (p.doi && p.doi.indexOf('no-doi') === -1 && p.doi.indexOf('pmid:') === -1) {
+      html += ' <a href="https://doi.org/' + escText(p.doi) + '" target="_blank" class="btn btn-id">' + escText(p.doi.length > 40 ? p.doi.slice(0,40)+'…' : p.doi) + '</a>';
+    }
+    if (p.pmid) {
+      html += ' <a href="https://pubmed.ncbi.nlm.nih.gov/' + escText(p.pmid) + '/" target="_blank" class="btn btn-id">PMID ' + escText(p.pmid) + '</a>';
+    }
+    document.getElementById('detail-actions').innerHTML = html;
+
+    placeholder.style.display = 'none';
+    detailContent.style.display = 'block';
+    detailPane.scrollTop = 0;
+
+    if (isMobile()) detailPane.classList.add('mobile-open');
+  }
+
+  // ─── Generic hover/click binder ───────────────────────────────────────
+  function bindHoverable(selector) {
+    var els = document.querySelectorAll(selector);
+    console.log('[digest] Binding ' + els.length + ' elements for: ' + selector);
+
+    els.forEach(function (el) {
+      var key = el.getAttribute('data-key');
+      if (!key) return;
+
+      el.addEventListener('mouseenter', function () {
+        if (isMobile()) return;
+        clearTimeout(debounceTimer);
+        clearActive();
+        el.classList.add('active');
+        activeEl = el;
+        debounceTimer = setTimeout(function () { showDetail(key); }, 50);
+      });
+
+      el.addEventListener('click', function (e) {
+        e.stopPropagation();
+        clearActive();
+        el.classList.add('active');
+        activeEl = el;
+        showDetail(key);
+        markVisited(key);  // explicit click = read
+      });
+    });
+  }
+
+  // Bind curated entries and TOC entries
+  bindHoverable('.entry[data-key]');
+  bindHoverable('.toc-entry[data-key]');
+
+  // Opening a full-text link (curated or TOC) marks that paper as read.
+  document.querySelectorAll('.fulltext-link').forEach(function (link) {
+    link.addEventListener('click', function () {
+      var host = link.closest('[data-key]');
+      if (host) markVisited(host.getAttribute('data-key'));
+    });
+  });
+
+  // Opening any link from the detail pane marks the shown paper as read.
+  var detailActions = document.getElementById('detail-actions');
+  if (detailActions) detailActions.addEventListener('click', function (e) {
+    if (e.target.closest('a')) markVisited(currentDetailKey);
+  });
+
+  // Auto-show first curated paper on load
+  var firstEntry = document.querySelector('.entry[data-key]');
+  if (firstEntry) {
+    firstEntry.classList.add('active');
+    activeEl = firstEntry;
+    showDetail(firstEntry.getAttribute('data-key'));
+  }
+
+  // ─── Show-more toggle ────────────────────────────────────────────────
+  window.toggleMore = function (btn) {
+    var overflow = btn.nextElementSibling;
+    if (overflow.style.display === 'none') {
+      overflow.style.display = '';
+      btn.textContent = 'Show fewer';
+    } else {
+      overflow.style.display = 'none';
+      var count = overflow.querySelectorAll('.entry').length;
+      btn.textContent = 'Show ' + count + ' more…';
+    }
+  };
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,23 @@
+# Ephemeral working output — the durable HTML archive lives in site/
+reports/
+
+# SQLite cache: RSS ETags + paper records only. Nothing in the pipeline reads it
+# back to gate output (was_included_in_report is never called), so it is safe to
+# regenerate from scratch on every cloud run.
+cache/
+
+# Local-only / not for the public site
+EdChuongCV_Feb2026_claude.md
+.claude/settings.local.json
+# Vault archiving was dropped from the flow (a cloud session cannot reach the local
+# vault); to_vault.py is kept on disk as a local utility but hardcodes a home path.
+to_vault.py
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# macOS
+.DS_Store
