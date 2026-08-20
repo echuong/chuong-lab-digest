@@ -166,16 +166,22 @@ Publishing is an in-repo commit, so it needs no extra credentials and works the 
 locally and in a cloud session.
 
 ```
-cp reports/digest_YYYY-MM-DD.html reports/latest_digest.html
-cp reports/digest_YYYY-MM-DD.md reports/latest_digest.md
-bash publish_digest.sh
+bash publish_digest.sh YYYY-MM-DD
 ```
 
-`publish_digest.sh` copies the digest to `site/index.html` and `site/digest_YYYY-MM-DD.html`,
-commits, and pushes to `main`. The `Deploy to GitHub Pages` workflow then publishes `site/`.
+That is the whole publish step — pass the digest date and the script does the rest. It reads
+`reports/digest_YYYY-MM-DD.html` directly, copies it to `site/index.html` and
+`site/digest_YYYY-MM-DD.html`, commits, and pushes to `main` (via `HEAD:main`, which is
+correct whether the checkout is on a branch or at the detached HEAD a cloud session gets).
+The `Deploy to GitHub Pages` workflow then publishes `site/`. If the remote moved while the
+digest was being built, the script rebases onto it and retries once on its own.
 
-If the push is rejected because the environment cannot write to `main` directly, push a
-branch and open a PR instead — say so in the final report rather than failing silently.
+There is no `reports/latest_digest.*` step any more — that indirection was removed on
+2026-08-20; nothing else ever read those files.
+
+If the push still fails — the environment genuinely cannot write to `main`, or the rebase hits
+a real conflict in `site/` — push a branch and open a PR instead, and say so explicitly in the
+final report rather than failing silently.
 
 ## Step 6: Report
 

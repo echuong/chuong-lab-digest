@@ -38,7 +38,7 @@ The `/digest` skill automates the full AI-enriched pipeline:
 2. Reads the generated JSON
 3. Generates executive summary, can't-miss picks, and lay summaries
 4. Applies enrichments via `--enrich` mode
-5. Copies to `reports/latest_digest.{html,md}` and publishes to GitHub Pages via `publish_digest.sh`
+5. Publishes to GitHub Pages via `bash publish_digest.sh YYYY-MM-DD`
 
 Usage: `/digest 15` (or `/digest` for the default 15-day lookback)
 
@@ -95,10 +95,14 @@ reports/                gitignored — ephemeral working output
 cache/                  gitignored — SQLite RSS ETags; safe to regenerate
 ```
 
-- **Publish**: `bash publish_digest.sh` copies `reports/latest_digest.html` into
-  `site/index.html` + `site/digest_YYYY-MM-DD.html`, commits, and pushes `main`. The
+- **Publish**: `bash publish_digest.sh YYYY-MM-DD` copies `reports/digest_YYYY-MM-DD.html`
+  into `site/index.html` + `site/digest_YYYY-MM-DD.html`, commits, and pushes `main`. The
   `Deploy to GitHub Pages` workflow then serves `site/` at
   https://echuong.github.io/chuong-lab-digest/
+  It pushes `HEAD:main`, not `main`: a cloud session checks the repo out at a **detached
+  HEAD** with a stale local `main` ref, so `git push origin main` pushes an old commit and is
+  rejected (this silently broke the 2026-08-20 run until fixed). If the remote moved during
+  the run, the script fetches, rebases onto it, and retries once.
 - **Schedule**: a Claude Code cloud routine fires `/digest 15` on the 1st & 15th
   (`0 7 1,15 * *`). It lives in the Claude account, not this repo — recreate it with the
   `/schedule` skill after any account migration.
