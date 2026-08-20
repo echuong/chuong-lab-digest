@@ -149,6 +149,63 @@
     .detail-close-mobile { display: none !important; }
   }
   @media (max-width: 720px) { :root { --nav: 0px; } nav { display: none; } main { margin-left: 0; } }
+</style><style id="chuong-digest-mobile-fix-v4">
+  html { -webkit-text-size-adjust: 100%; }
+  @media (max-width: 720px) {
+    :root { font-size: 17px; }
+    .banner { padding: 1.1rem 0.9rem 0.9rem; }
+    section { padding: 1.1rem 0.9rem 0; }
+    .divider { margin: 0 0.9rem; }
+    .chips { gap: 0.45rem; }
+    .entry { padding: 0.55rem 0.6rem; }
+    details.toc summary { padding: 0.55rem 0.7rem; }
+    .toc-list li { padding: 0.4rem 0.7rem; gap: 0.35rem; }
+    /* A phone has no width to spare for a pill beside the title: let the title
+       span the row and the link trail after it. */
+    .toc-ptitle { display: block; }
+    .toc-ptitle .fulltext-link { margin-left: 0.3rem; }
+    /* Full author lists run 8+ lines per row on a phone. */
+    .toc-auth { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .toc-dt { min-width: 0; font-size: 0.62rem; }
+    .entry-title-row, .toc-ptitle span, #detail-title, #detail-abstract { overflow-wrap: break-word; }
+  }
+
+  @media (max-width: 900px) {
+    .detail-pane {
+      /* The base rule pins top: 0; left alongside bottom: 0 the sheet is
+         over-constrained, top wins, and the "hidden" sheet stays parked over
+         the lower quarter of every phone screen. */
+      top: auto; bottom: 0;
+      height: 72vh; height: 72dvh; max-height: 72dvh;
+      border-radius: 14px 14px 0 0; box-shadow: 0 -10px 34px rgba(0,0,0,0.5);
+      padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+      transform: translateY(102%);
+    }
+    .detail-pane.mobile-open { transform: translateY(0); }
+    .detail-pane::before {
+      content: ""; display: block; width: 38px; height: 4px; border-radius: 2px;
+      background: var(--dim); margin: 0 auto 0.7rem;
+    }
+  }
+  @media (max-width: 720px) {
+    /* The sidebar is hidden below 720px, taking every jump link with it.
+       Re-flow it as a scrollable chip rail so the anchors survive on a phone. */
+    nav {
+      display: flex; position: static; width: 100%; height: auto;
+      flex-direction: row; align-items: center; gap: 0.3rem;
+      overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch;
+      scrollbar-width: none; border-right: none; border-bottom: 1px solid var(--border);
+      padding: 0.5rem 0.9rem;
+    }
+    nav::-webkit-scrollbar { display: none; }
+    nav .logo, nav .date, nav h4 { display: none; }
+    nav a {
+      display: inline-block; flex: 0 0 auto; margin: 0; max-width: 62vw;
+      padding: 0.3rem 0.65rem; font-size: 0.72rem; border-radius: 999px;
+      background: var(--surface2); border: 1px solid var(--border);
+    }
+    .detail-close-mobile { padding: 0.4rem 0.6rem !important; }
+  }
 </style>
 </head>
 <body>
@@ -18024,5 +18081,32 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
+
+<script id="chuong-digest-mobile-fix-v4-js">
+(function () {
+  function ready(fn) {
+    if (document.readyState !== 'loading') fn();
+    else document.addEventListener('DOMContentLoaded', fn);
+  }
+  ready(function () {
+    var pane = document.getElementById('detail-pane');
+    if (!pane) return;
+    var mq = window.matchMedia('(max-width: 900px)');
+    // The page's own load handler auto-opens the sheet over the first paper.
+    // This listener is registered later, so it runs after and closes it again.
+    if (mq.matches) pane.classList.remove('mobile-open');
+    var ph = document.getElementById('detail-placeholder');
+    if (ph && mq.matches) ph.textContent = 'Tap a paper to see details';
+    // Tap outside the open sheet closes it. Entry taps call stopPropagation,
+    // so the tap that opens the sheet never reaches this handler.
+    document.addEventListener('click', function (e) {
+      if (!mq.matches) return;
+      if (!pane.classList.contains('mobile-open')) return;
+      if (pane.contains(e.target)) return;
+      pane.classList.remove('mobile-open');
+    });
+  });
+})();
+</script>
 </body>
 </html>

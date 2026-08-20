@@ -181,6 +181,26 @@
   ::-webkit-scrollbar-track { background: var(--bg); }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
   @media (max-width: 720px) { :root { --nav: 0px; } nav { display: none; } main { margin-left: 0; } #drawer { width: 100vw; } }
+</style><style id="chuong-digest-mobile-fix-v4">
+  html { -webkit-text-size-adjust: 100%; }
+  @media (max-width: 720px) {
+    :root { font-size: 17px; }
+    .banner { padding: 1.1rem 0.9rem 0.9rem; }
+    section { padding: 1.1rem 0.9rem 0; }
+    .divider { margin: 0 0.9rem; }
+    .chips { gap: 0.45rem; }
+    .entry { padding: 0.55rem 0.6rem; }
+    details.toc summary { padding: 0.55rem 0.7rem; }
+    .toc-list li { padding: 0.4rem 0.7rem; gap: 0.35rem; }
+    /* A phone has no width to spare for a pill beside the title: let the title
+       span the row and the link trail after it. */
+    .toc-ptitle { display: block; }
+    .toc-ptitle .fulltext-link { margin-left: 0.3rem; }
+    /* Full author lists run 8+ lines per row on a phone. */
+    .toc-auth { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .toc-dt { min-width: 0; font-size: 0.62rem; }
+    .entry-title-row, .toc-ptitle span, #detail-title, #detail-abstract { overflow-wrap: break-word; }
+  }
 </style>
 </head>
 <body>

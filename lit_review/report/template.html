@@ -13,6 +13,7 @@
     --nav: 200px; --pane: 380px; font-size: 19px; line-height: 1.55;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
   body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 
   nav { position: fixed; top: 0; left: 0; width: var(--nav); height: 100vh; background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; padding: 1rem 0.8rem; z-index: 100; font-size: 0.78rem; }
@@ -174,14 +175,60 @@
 
   @media (max-width: 900px) {
     main { margin-right: 0; }
-    .detail-pane { position: fixed; bottom: 0; left: 0; right: 0; width: 100%; height: 45vh; border-left: none; border-top: 1px solid var(--border); transform: translateY(100%); transition: transform 0.22s ease; z-index: 150; }
+    .detail-pane {
+      position: fixed; bottom: 0; left: 0; right: 0; top: auto; width: 100%;
+      height: 72vh; height: 72dvh; max-height: 72dvh;
+      border-left: none; border-top: 1px solid var(--border);
+      border-radius: 14px 14px 0 0; box-shadow: 0 -10px 34px rgba(0,0,0,0.5);
+      padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+      transform: translateY(102%); transition: transform 0.22s ease; z-index: 150;
+    }
+    .detail-pane::before {
+      content: ""; display: block; width: 38px; height: 4px; border-radius: 2px;
+      background: var(--dim); margin: 0 auto 0.7rem;
+    }
     .detail-pane.mobile-open { transform: translateY(0); }
     .detail-pane .detail-close-mobile { display: block; }
   }
   @media (min-width: 901px) {
     .detail-close-mobile { display: none !important; }
   }
-  @media (max-width: 720px) { :root { --nav: 0px; } nav { display: none; } main { margin-left: 0; } }
+  @media (max-width: 720px) {
+    :root { --nav: 0px; font-size: 17px; }
+    main { margin-left: 0; }
+    /* No room for a sidebar on a phone: re-flow it into a horizontally
+       scrollable chip rail above the banner so the jump links survive. */
+    nav {
+      display: flex; position: static; width: 100%; height: auto;
+      flex-direction: row; align-items: center; gap: 0.3rem;
+      overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch;
+      scrollbar-width: none; border-right: none; border-bottom: 1px solid var(--border);
+      padding: 0.5rem 0.9rem;
+    }
+    nav::-webkit-scrollbar { display: none; }
+    nav .logo, nav .date, nav h4 { display: none; }
+    nav a {
+      display: inline-block; flex: 0 0 auto; margin: 0; max-width: 62vw;
+      padding: 0.3rem 0.65rem; font-size: 0.72rem; border-radius: 999px;
+      background: var(--surface2); border: 1px solid var(--border);
+    }
+    .banner { padding: 1.1rem 0.9rem 0.9rem; }
+    section { padding: 1.1rem 0.9rem 0; }
+    .divider { margin: 0 0.9rem; }
+    .chips { gap: 0.45rem; }
+    .entry { padding: 0.55rem 0.6rem; }
+    details.toc summary { padding: 0.55rem 0.7rem; }
+    .toc-list li { padding: 0.4rem 0.7rem; gap: 0.35rem; }
+    /* A phone has no width to spare for a pill beside the title: let the
+       title span the row and the link trail after it. */
+    .toc-ptitle { display: block; }
+    .toc-ptitle .fulltext-link { margin-left: 0.3rem; }
+    /* Full author lists run 8+ lines per row on a phone. */
+    .toc-auth { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .toc-dt { min-width: 0; font-size: 0.62rem; }
+    .entry-title-row, .toc-ptitle span, #detail-title, #detail-abstract { overflow-wrap: break-word; }
+    .detail-close-mobile { padding: 0.4rem 0.6rem !important; }
+  }
 </style>
 </head>
 <body>
@@ -340,7 +387,7 @@
 <!-- ─── Detail pane (fixed right sidebar, outside main) ────────────────── -->
 <aside class="detail-pane" id="detail-pane">
   <button class="detail-close-mobile btn" onclick="document.getElementById('detail-pane').classList.remove('mobile-open')" style="position:absolute;top:0.5rem;right:0.5rem;color:var(--muted);font-size:1.1rem;">✕</button>
-  <div class="detail-placeholder" id="detail-placeholder">Hover over a paper to see details</div>
+  <div class="detail-placeholder" id="detail-placeholder">Select a paper to see details</div>
   <div class="detail-content" id="detail-content" style="display:none">
     <div id="detail-title"></div>
     <div id="detail-authors"></div>
@@ -572,9 +619,19 @@ document.addEventListener('DOMContentLoaded', function () {
     if (e.target.closest('a')) markVisited(currentDetailKey);
   });
 
-  // Auto-show first curated paper on load
+  // Tapping outside the bottom sheet closes it (entry clicks stopPropagation,
+  // so an opening tap never reaches this handler).
+  document.addEventListener('click', function (e) {
+    if (!isMobile()) return;
+    if (!detailPane.classList.contains('mobile-open')) return;
+    if (detailPane.contains(e.target)) return;
+    detailPane.classList.remove('mobile-open');
+  });
+
+  // Auto-show first curated paper on load — desktop only; on mobile this
+  // would pop the bottom sheet over the page before the reader taps anything.
   var firstEntry = document.querySelector('.entry[data-key]');
-  if (firstEntry) {
+  if (firstEntry && !isMobile()) {
     firstEntry.classList.add('active');
     activeEl = firstEntry;
     showDetail(firstEntry.getAttribute('data-key'));
