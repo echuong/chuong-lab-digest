@@ -295,6 +295,9 @@ def run_digest(
 
     all_journal_papers: List[Paper] = []
     journal_tocs: List[JournalTOC] = []
+    # Journals RSS actually delivered articles for this run. Observed, not assumed —
+    # see the stats block below.
+    rss_delivered: set[str] = set()
     pubmed = PubMedSource(api_key=config.ncbi_api_key)
 
     # ── Step 1: Fetch journal RSS feeds ──────────────────────────────────────
@@ -310,6 +313,7 @@ def run_digest(
             cache.set_feed_etag(url, etag, lm)
 
         rss_total = sum(len(t.papers) for t in tocs)
+        rss_delivered = {t.journal_name for t in tocs if t.papers}
         console.print(f"  → [green]{rss_total}[/] articles from RSS")
 
         # 1b. PubMed supplement — fetch all 20 journals via Entrez
@@ -352,7 +356,7 @@ def run_digest(
     all_preprints: List[Paper] = []
     if not skip_biorxiv:
         console.print("\n[bold]Step 2/3: Fetching bioRxiv preprints...[/]")
-        biorxiv = BioRxivSource(request_delay=0.5)
+        biorxiv = BioRxivSource(request_delay=0.5, max_scan=config.biorxiv_max_scan)
         preprints = biorxiv.search_multi_category(
             since=period_start,
             until=period_end,
@@ -402,9 +406,12 @@ def run_digest(
         p.finding = _heuristic_finding(p)
 
     # ── Build RSS vs PubMed status ────────────────────────────────────────────
-    RSS_BROKEN = {"Molecular Biology and Evolution"}
-    rss_ok_list = [jc.name for jc in config.journals if jc.name not in RSS_BROKEN]
-    pubmed_only_list = list(RSS_BROKEN)
+    # Report what actually happened, not what we expected to happen. This used to
+    # be a hardcoded list of every configured journal minus a known-broken set,
+    # which meant a run where every feed failed still reported RSS as healthy and
+    # a total egress failure looked like a quiet fortnight.
+    rss_ok_list = [jc.name for jc in config.journals if jc.name in rss_delivered]
+    pubmed_only_list = [jc.name for jc in config.journals if jc.name not in rss_delivered]
 
     # ── Build stats ───────────────────────────────────────────────────────────
     journals_with_content = sum(1 for t in journal_tocs if t.papers)
@@ -452,15 +459,23 @@ def run_digest(
         console.print("\n[yellow]Dry run — no report saved.[/]")
         return
 
-    # Save JSON for Claude Code enrichment
+    # Full JSON — the re-render source for --enrich
     json_path = output_dir / f"digest_{today.strftime('%Y-%m-%d')}.json"
     report.to_json(str(json_path))
 
+    # Slim JSON — what the AI enrichment step reads. Kept separate because the
+    # full digest is megabytes of abstracts the enrichment never needs, which is
+    # far too much to pull into a context window.
+    enrich_path = output_dir / f"digest_{today.strftime('%Y-%m-%d')}.enrich.json"
+    with open(enrich_path, "w", encoding="utf-8") as f:
+        json.dump(report.to_enrich_dict(), f, indent=1, ensure_ascii=False)
+
     html_path, md_path = formatter.save(report, output_dir)
     console.print(f"\n[bold green]✓ Report saved:[/]")
-    console.print(f"  JSON: {json_path}")
-    console.print(f"  HTML: [link={html_path}]{html_path}[/link]")
-    console.print(f"  MD:   {md_path}")
+    console.print(f"  JSON:   {json_path} [dim]({json_path.stat().st_size/1e6:.1f} MB, re-render source)[/]")
+    console.print(f"  ENRICH: {enrich_path} [dim]({enrich_path.stat().st_size/1e3:.0f} KB — read this one)[/]")
+    console.print(f"  HTML:   [link={html_path}]{html_path}[/link]")
+    console.print(f"  MD:     {md_path}")
     console.print(f"\n[dim]Enrich with AI: use /digest skill in Claude Code[/]")
 
 

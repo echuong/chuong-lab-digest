@@ -193,6 +193,16 @@ class DigestReport:
     all_preprints: List[Paper] = field(default_factory=list)
 
     def to_dict(self) -> dict:
+        """
+        Serialize for re-rendering (the --enrich round trip).
+
+        `all_journal_papers` and `all_preprints` are deliberately excluded. They
+        exist only so the scorer can rank the full corpus in memory; the HTML
+        template renders `journal_tocs` and the top lists, never those two. Writing
+        them out added ~1.2 MB of never-read JSON, and grew with corpus size —
+        a full bioRxiv fortnight is ~1,000 preprints. Their counts survive in
+        `stats`, which is what the report actually displays.
+        """
         return {
             "generated_date": self.generated_date.isoformat(),
             "period_start": self.period_start.isoformat(),
@@ -201,8 +211,41 @@ class DigestReport:
             "top_preprints": [p.to_dict() for p in self.top_preprints],
             "journal_tocs": [t.to_dict() for t in self.journal_tocs],
             "stats": self.stats.to_dict(),
-            "all_journal_papers": [p.to_dict() for p in self.all_journal_papers],
-            "all_preprints": [p.to_dict() for p in self.all_preprints],
+        }
+
+    def to_enrich_dict(self, toc_titles_per_journal: int = 12) -> dict:
+        """
+        Slim view for the AI enrichment step, which needs far less than a re-render.
+
+        The enrichment spec needs full abstracts only for the papers it actually
+        writes about (top_papers + top_preprints). For the per-journal summaries it
+        needs just enough of each table of contents to orient the reader, so those
+        carry title and score and drop abstracts, authors, and identifiers. That is
+        the difference between a ~3 MB file and a ~60 KB one — the full digest JSON
+        is far too large to read into a context window.
+        """
+        def _toc_entry(p: "Paper") -> dict:
+            return {"title": p.title, "keyword_score": round(p.keyword_score, 1)}
+
+        tocs = []
+        for t in self.journal_tocs:
+            if not t.papers:
+                continue
+            ranked = sorted(t.papers, key=lambda p: -(p.keyword_score or 0))
+            tocs.append({
+                "journal_name": t.journal_name,
+                "paper_count": len(t.papers),
+                "top_titles": [_toc_entry(p) for p in ranked[:toc_titles_per_journal]],
+            })
+
+        return {
+            "generated_date": self.generated_date.isoformat(),
+            "period_start": self.period_start.isoformat(),
+            "period_end": self.period_end.isoformat(),
+            "stats": self.stats.to_dict(),
+            "top_papers": [p.to_dict() for p in self.top_papers],
+            "top_preprints": [p.to_dict() for p in self.top_preprints],
+            "journal_tocs": tocs,
         }
 
     @classmethod

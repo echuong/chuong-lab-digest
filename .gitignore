@@ -11,7 +11,7 @@ EdChuongCV_Feb2026_claude.md
 .claude/settings.local.json
 # Vault archiving was dropped from the flow (a cloud session cannot reach the local
 # vault); to_vault.py is kept on disk as a local utility but hardcodes a home path.
-to_vault.py
+to_vault.py*
 
 # Python
 __pycache__/

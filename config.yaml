@@ -82,6 +82,15 @@ journals:
     pubmed_ta: "Curr Biol"
 
 # bioRxiv categories to search
+# Ceiling on bioRxiv records walked per run. The API has no server-side category
+# filter, so reaching every genetics/genomics/immunology preprint means paging the
+# whole date range and filtering client-side — about 3,200 records for a 15-day
+# window, at 30 per page. This costs wall-clock time only (roughly 7 minutes), not
+# tokens: the preprint corpus is scored in memory and never written to the digest
+# JSON. Lowering it truncates in bioRxiv's own order, which biases coverage toward
+# one end of the window rather than just returning fewer papers.
+biorxiv_max_scan: 8000
+
 biorxiv_categories:
   - "genetics"
   - "genomics"
