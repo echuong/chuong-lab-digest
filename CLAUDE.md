@@ -103,9 +103,12 @@ reports/                gitignored — ephemeral working output
   HEAD** with a stale local `main` ref, so `git push origin main` pushes an old commit and is
   rejected (this silently broke the 2026-08-20 run until fixed). If the remote moved during
   the run, the script fetches, rebases onto it, and retries once.
-- **Schedule**: a Claude Code cloud routine fires `/digest 15` on the 1st & 15th
-  (`0 7 1,15 * *`). It lives in the Claude account, not this repo — recreate it with the
-  `/schedule` skill after any account migration.
+- **Schedule**: cloud routine **Literature digest** (`trig_01TRvC25efZVbf6CNr8ac5dm`), cron
+  `13 13 1,15 * *` UTC = 7:13am MDT on the 1st & 15th, model `claude-opus-5`, no MCP connectors.
+  Manage at https://claude.ai/code/routines — it lives in the Claude account, not this repo, so
+  recreate it with the `/schedule` skill after any account migration. Created 2026-08-20; the
+  routine this file previously documented did not exist, which is why the 2026-08-15 cycle
+  produced nothing at all.
 - **No Obsidian vault step.** Dropped 2026-08-19: a cloud session cannot reach the local
   vault at `~/Documents/Obsidian Vault`. The public site is the durable archive.
   `to_vault.py` is retained as a local-only utility and is not part of the flow.
