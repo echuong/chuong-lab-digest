@@ -14,6 +14,25 @@ from ..models import Paper
 BASE_URL = "https://api.biorxiv.org/details"
 UA = "LitReviewBot/1.0 (Chuong Lab, CU Boulder; research use only)"
 
+# Safety cap on records walked for one date range, so a very wide --days cannot
+# page forever. bioRxiv posts roughly 3-4k preprints per fortnight across all
+# categories, so this comfortably covers the 15-day digest window.
+MAX_SCAN = 8000
+
+
+def _reported_total(data: dict) -> Optional[int]:
+    """
+    Total records the API says match this date range.
+
+    Paging must be driven off this rather than an assumed page size: bioRxiv
+    serves 30 records per page, and any code that stops when a page comes back
+    shorter than some hardcoded width silently quits after page one.
+    """
+    try:
+        return int(data["messages"][0]["total"])
+    except (KeyError, IndexError, TypeError, ValueError):
+        return None
+
 
 def _parse_biorxiv_paper(item: dict) -> Optional[Paper]:
     """Convert a bioRxiv API result dict to a Paper."""
@@ -50,10 +69,32 @@ def _parse_biorxiv_paper(item: dict) -> Optional[Paper]:
 class BioRxivSource:
     """Fetches preprints from the bioRxiv public REST API."""
 
-    def __init__(self, request_delay: float = 0.5):
+    def __init__(self, request_delay: float = 0.5, max_scan: int = MAX_SCAN):
         self._delay = request_delay
+        self._max_scan = max_scan
         self._session = requests.Session()
         self._session.headers.update({"User-Agent": UA})
+
+    def _get_page(self, url: str, attempts: int = 3, verbose: bool = True) -> Optional[dict]:
+        """
+        GET one page of results, retrying transient network failures.
+
+        A single dropped connection partway through pagination would otherwise
+        truncate the whole scan and look like a quiet fortnight, so a few
+        retries here protect coverage. Returns None once attempts are spent.
+        """
+        for attempt in range(1, attempts + 1):
+            try:
+                resp = self._session.get(url, timeout=20)
+                resp.raise_for_status()
+                return resp.json()
+            except Exception as e:
+                if attempt == attempts:
+                    if verbose:
+                        print(f"ERROR: {e}")
+                    return None
+                time.sleep(self._delay * 2 * attempt)
+        return None
 
     def search(
         self,
@@ -64,31 +105,28 @@ class BioRxivSource:
     ) -> List[Paper]:
         """
         Fetch preprints in a date range.
-        If category is given, filter client-side (bioRxiv API filters by category).
+        If category is given, filter client-side (the API does not filter by it).
         """
         date_from = since.strftime("%Y-%m-%d")
         date_to = until.strftime("%Y-%m-%d")
 
-        papers = []
+        papers: List[Paper] = []
         cursor = 0
+        total: Optional[int] = None
 
-        while len(papers) < max_results:
-            if category:
-                url = f"{BASE_URL}/biorxiv/{date_from}/{date_to}/{cursor}/json"
-            else:
-                url = f"{BASE_URL}/biorxiv/{date_from}/{date_to}/{cursor}/json"
+        while len(papers) < max_results and cursor < self._max_scan:
+            url = f"{BASE_URL}/biorxiv/{date_from}/{date_to}/{cursor}/json"
 
-            try:
-                resp = self._session.get(url, timeout=20)
-                resp.raise_for_status()
-                data = resp.json()
-            except Exception as e:
-                print(f"    bioRxiv API error at cursor {cursor}: {e}")
+            data = self._get_page(url)
+            if data is None:
                 break
 
             collection = data.get("collection", [])
             if not collection:
                 break
+
+            if total is None:
+                total = _reported_total(data)
 
             for item in collection:
                 # Category filter (if specified)
@@ -100,14 +138,13 @@ class BioRxivSource:
                 if paper:
                     papers.append(paper)
 
+            cursor += len(collection)
+            if total is not None and cursor >= total:
+                break
+
             time.sleep(self._delay)
 
-            # bioRxiv returns up to 100 per page
-            if len(collection) < 100:
-                break
-            cursor += len(collection)
-
-        return papers
+        return papers[:max_results]
 
     def search_multi_category(
         self,
@@ -129,38 +166,43 @@ class BioRxivSource:
         date_to = until.strftime("%Y-%m-%d")
 
         all_papers: dict[str, Paper] = {}
+        wanted = [c.lower().replace(" ", "_") for c in categories]
         cursor = 0
-        page_limit = 2000  # safety limit
+        total: Optional[int] = None
 
-        while cursor < page_limit:
+        while cursor < self._max_scan:
             url = f"{BASE_URL}/biorxiv/{date_from}/{date_to}/{cursor}/json"
-            try:
-                resp = self._session.get(url, timeout=20)
-                resp.raise_for_status()
-                data = resp.json()
-            except Exception as e:
-                if verbose:
-                    print(f"ERROR: {e}")
+
+            data = self._get_page(url, verbose=verbose)
+            if data is None:
                 break
 
             collection = data.get("collection", [])
             if not collection:
                 break
 
+            if total is None:
+                total = _reported_total(data)
+
             for item in collection:
                 item_cat = item.get("category", "").lower().replace(" ", "_")
-                if not categories or item_cat in [c.lower().replace(" ", "_") for c in categories]:
+                if not wanted or item_cat in wanted:
                     paper = _parse_biorxiv_paper(item)
                     if paper and paper.doi not in all_papers:
                         all_papers[paper.doi] = paper
 
-            time.sleep(self._delay)
-
-            if len(collection) < 100:
-                break
             cursor += len(collection)
+            if total is not None and cursor >= total:
+                break
+
+            time.sleep(self._delay)
 
         result = list(all_papers.values())
         if verbose:
-            print(f"{len(result)} preprints")
+            scanned = f"scanned {cursor}"
+            if total is not None:
+                scanned += f"/{total}"
+                if cursor < total:
+                    scanned += " — TRUNCATED"
+            print(f"{len(result)} preprints ({scanned})")
         return result

@@ -27,12 +27,23 @@ Wait for it to complete and note the JSON file path from the output.
 
 ## Step 2: Read the digest JSON
 
-Read the generated JSON file from the reports/ directory (the most recent `digest_*.json`).
+Read **`reports/digest_YYYY-MM-DD.enrich.json`** — the slim enrichment view, around 80 KB.
 
-From the JSON, extract:
-- `top_papers`: the top keyword-scored journal papers (titles, authors, abstracts, DOIs, scores)
-- `top_preprints`: the top bioRxiv preprints
-- `journal_tocs`: per-journal tables of contents (`journal_name` + `papers`), used for the per-journal mini-summaries
+**Do not read `digest_YYYY-MM-DD.json`.** That is the full re-render source: megabytes of
+abstracts for every paper scanned, most of which this step never mentions. Reading it wastes
+the context window on data you will not use, and on a busy fortnight it will not fit at all.
+The pipeline prints both paths and their sizes; take the one labelled `ENRICH`.
+
+The slim file contains exactly what the enrichment needs:
+- `top_papers`: the top keyword-scored journal papers, with full abstracts, DOIs, and scores
+- `top_preprints`: the top bioRxiv preprints, same shape
+- `journal_tocs`: one entry per journal that had papers — `journal_name`, `paper_count`, and
+  `top_titles` (the highest-scoring titles with scores, no abstracts). Enough to orient the
+  per-journal mini-summaries; write those from the titles.
+- `stats`: counts for the period, including `rss_ok` and `pubmed_only`
+
+If `stats.rss_ok` is empty while `pubmed_only` lists every journal, RSS wholly failed this run —
+say so in your report rather than presenting a thin digest as a quiet fortnight.
 
 ## Step 3: Generate AI enrichments
 
@@ -141,6 +152,11 @@ Write this JSON to a temp file, then run:
 ```
 python run_review.py --enrich reports/digest_YYYY-MM-DD.json < /tmp/enrichments.json
 ```
+
+Note the filename: `--enrich` takes the **full** `digest_YYYY-MM-DD.json`, not the `.enrich.json`
+you read in Step 2. The full file is the re-render source, so the enriched HTML keeps every
+journal table of contents; the slim file exists only to be read. Enrichments are matched to
+papers by DOI, so the DOIs in your JSON must be copied exactly from the slim file.
 
 ## Step 5: Publish to GitHub Pages
 

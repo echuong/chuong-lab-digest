@@ -55,7 +55,17 @@ The pipeline runs in 4 sequential steps orchestrated by `run_review.py:run_diges
 1. **Fetch journals** — RSS feeds (`RSSFetcher`) supplemented by PubMed Entrez (`PubMedSource.search_journal`), merged and deduplicated into `JournalTOC` objects. Missing abstracts are enriched via `PubMedSource.enrich_abstracts()`.
 2. **Fetch bioRxiv** — `BioRxivSource` queries the bioRxiv REST API across configured categories
 3. **Score & rank** — `KeywordScorer` does weighted tier-based keyword matching (title hits get a multiplier)
-4. **Generate report** — `ReportFormatter` renders Jinja2 HTML template + Markdown, plus JSON for AI enrichment. Saved to `reports/`
+4. **Generate report** — `ReportFormatter` renders Jinja2 HTML template + Markdown, plus **two**
+   JSON files in `reports/`:
+   - `digest_YYYY-MM-DD.json` — full re-render source, ~1.5 MB. Feed this to `--enrich`.
+   - `digest_YYYY-MM-DD.enrich.json` — slim view for the AI, ~80 KB. **Read this one.** It keeps
+     abstracts only for the papers being written about and reduces each journal TOC to its
+     top titles. Reading the full JSON instead costs ~750K tokens for data the enrichment
+     never uses.
+
+   `all_journal_papers` / `all_preprints` are intentionally *not* serialized: they exist only so
+   the scorer can rank the whole corpus in memory, and the template never renders them. Their
+   counts live in `stats`.
 
 The `--enrich` mode loads a digest JSON, applies enrichments (executive summary, lay summaries, can't-miss picks) from stdin, and re-renders HTML/MD.
 
@@ -111,6 +121,8 @@ All tuning happens in `config.yaml`:
 ## Known Issues
 
 - MBE (Molecular Biology and Evolution) RSS is broken (OUP Cloudflare 403) — relies on PubMed-only fallback
-- bioRxiv API returns max 100 results per page; large date ranges require pagination
+- bioRxiv serves **30 results per page** (not 100). `biorxiv.py` pages off the API's own
+  reported `total` rather than an assumed page width, capped at `MAX_SCAN` records, and retries
+  a dropped page so one transient failure cannot silently truncate a scan
 - No tests exist yet
 - The cloud routine has no failure alerting: if a scheduled run errors, the site simply keeps showing the previous digest

@@ -37,6 +37,7 @@ class Config:
     journal_blocklist: List[str]
     keyword_tiers: Dict[str, KeywordTier]
     ncbi_api_key: Optional[str] = None
+    biorxiv_max_scan: int = 8000
 
     @classmethod
     def load(cls, config_path: str = "config.yaml") -> "Config":
@@ -74,6 +75,7 @@ class Config:
             cache_dir=Path(raw.get("cache_dir", "cache")),
             journals=journals,
             biorxiv_categories=raw.get("biorxiv_categories", []),
+            biorxiv_max_scan=int(raw.get("biorxiv_max_scan", 8000)),
             journal_blocklist=raw.get("journal_blocklist", []),
             keyword_tiers=keyword_tiers,
             ncbi_api_key=os.environ.get("NCBI_API_KEY"),
