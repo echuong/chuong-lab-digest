@@ -1,10 +1,11 @@
 """RSS/Atom feed fetcher for journal TOC scraping."""
 from __future__ import annotations
 
+import hashlib
 import re
 import time
-from datetime import date, datetime
-from typing import List, Optional, Tuple
+from datetime import date
+from typing import List, Optional
 
 import feedparser
 import requests
@@ -101,8 +102,11 @@ def _entry_to_paper(entry, journal_name: str) -> Optional[Paper]:
 
     doi = _extract_doi(entry)
     if not doi:
-        # Use the link as a surrogate key
-        doi = getattr(entry, "link", "") or f"no-doi-{hash(title)}"
+        # Surrogate key. Must be stable across runs, so it is a title digest --
+        # Python's hash() for str is salted per process, which made the old
+        # surrogate different on every run and impossible to deduplicate on.
+        link = getattr(entry, "link", "")
+        doi = link or "no-doi-" + hashlib.sha1(title.encode("utf-8")).hexdigest()[:16]
 
     # Authors
     authors = []
@@ -135,8 +139,7 @@ def _entry_to_paper(entry, journal_name: str) -> Optional[Paper]:
 class RSSFetcher:
     """Fetches journal table-of-contents via RSS/Atom feeds."""
 
-    def __init__(self, cache_etags: Optional[dict] = None, request_delay: float = 1.0):
-        self._etags: dict = cache_etags or {}
+    def __init__(self, request_delay: float = 1.0):
         self._delay = request_delay
         self._session = requests.Session()
         self._session.headers.update({"User-Agent": UA})
@@ -150,12 +153,13 @@ class RSSFetcher:
         time.sleep(self._delay)
 
         if result is None:
-            # 304 Not Modified or fetch error — return empty TOC
+            # Fetch failed — return an empty TOC. The PubMed supplement covers
+            # this journal, and stats.rss_ok will correctly show RSS did not
+            # deliver it.
             return JournalTOC(
                 journal_name=journal_config.name,
                 papers=[],
                 fetch_date=date.today(),
-                total_items=0,
                 feed_url=feed_url,
             )
 
@@ -174,7 +178,6 @@ class RSSFetcher:
             journal_name=journal_config.name,
             papers=papers,
             fetch_date=date.today(),
-            total_items=len(feed.entries),
             feed_url=feed_url,
         )
 
@@ -203,31 +206,26 @@ class RSSFetcher:
                         journal_name=jc.name,
                         papers=[],
                         fetch_date=date.today(),
-                        total_items=0,
                         feed_url=jc.rss_url,
                     )
                 )
         return tocs
 
-    def _fetch_feed(self, url: str) -> Optional[str]:
-        """Fetch RSS feed content; return None on 304 or error."""
-        etag, last_modified = self._etags.get(url, ("", ""))
-        headers = {}
-        if etag:
-            headers["If-None-Match"] = etag
-        if last_modified:
-            headers["If-Modified-Since"] = last_modified
+    def _fetch_feed(self, url: str):
+        """
+        Fetch feed content; return None on error.
 
+        Returns either the raw feed text or, via the fallback path, an
+        already-parsed feedparser result -- `fetch_journal` sniffs for `.entries`.
+
+        This deliberately makes no conditional request. Feeds used to be fetched
+        with If-None-Match/If-Modified-Since from a cached validator, but only
+        the validators were cached, never the feed bodies, so a 304 returned None
+        and the journal was reported as having published nothing that fortnight.
+        """
         try:
-            resp = self._session.get(url, headers=headers, timeout=15)
-            if resp.status_code == 304:
-                return None
+            resp = self._session.get(url, timeout=15)
             resp.raise_for_status()
-            # Update cached etag/last-modified
-            self._etags[url] = (
-                resp.headers.get("ETag", ""),
-                resp.headers.get("Last-Modified", ""),
-            )
             return resp.text
         except requests.RequestException:
             # On failure, let feedparser try fetching the URL directly

@@ -4,19 +4,22 @@
 # Default time range in days
 days_back: 30
 
-# Number of top results to include per section
-top_n_papers: 10
+# Size of the curated slate in the digest. This is the real, final count --
+# it used to be multiplied by 2 internally, so "10" produced 20 papers.
+top_n_papers: 20
 top_n_preprints: 10
-top_n_classics: 5
+
+# Journal-breadth pass: after the global ranking, take up to this many papers
+# per journal scoring at least journal_highlight_min_score, so a strong issue in
+# a small journal is not crowded out by a prolific one.
+top_per_journal: 3
+journal_highlight_min_score: 5.0
 
 # Minimum keyword score to include in digest
 keyword_score_threshold: 3.0
 
 # Output directory for digest reports
 output_dir: "reports"
-
-# Cache directory
-cache_dir: "cache"
 
 # Journals to track (name + RSS URL + PubMed title abbreviation for fallback)
 journals:
@@ -91,6 +94,12 @@ journals:
 # one end of the window rather than just returning fewer papers.
 biorxiv_max_scan: 8000
 
+# Wall-clock ceiling for the bioRxiv scan, in seconds. The API's latency varies
+# by more than 10x: the same 2,793-record fortnight took 531s on a good day and
+# 6,135s on a flaky one. A partial scan is reported honestly (see
+# stats.preprint_scan_truncated), so bounding the time is safe.
+biorxiv_max_seconds: 1500
+
 biorxiv_categories:
   - "genetics"
   - "genomics"
@@ -101,6 +110,11 @@ biorxiv_categories:
   - "evolutionary_biology"
 
 # Journal quality blocklist (reject papers from these publishers/journals)
+# Matched whole-word, and only against journals that are NOT in the tracked
+# list above (and never against preprints). "Biology" here targets MDPI's
+# journal *Biology*; as a bare substring it also matched Genome Biology,
+# Current Biology, and Molecular Biology and Evolution, and silently removed
+# all three tracked journals from the ranked corpus.
 journal_blocklist:
   - "Frontiers"
   - "MDPI"
@@ -108,6 +122,8 @@ journal_blocklist:
   - "Cells"
   - "Genes"
   - "International Journal of Molecular Sciences"
+  # PubMed reports journals by abbreviation, so block those forms too
+  - "Int J Mol Sci"
   - "Biology"
   - "Biomolecules"
   - "Biomedicines"

@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import re
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from ..config import Config, KeywordTier
 from ..models import Paper
+
+Span = Tuple[int, int]
 
 
 def _normalize(text: str) -> str:
@@ -21,12 +23,38 @@ def _build_pattern(term: str) -> re.Pattern:
     return re.compile(r"(?<![a-zA-Z0-9])" + escaped + r"(?![a-zA-Z0-9])", re.IGNORECASE)
 
 
+def _subsumed(span: Span, spans: List[Span]) -> bool:
+    """
+    True if this match sits entirely inside a strictly longer match.
+
+    Several terms deliberately nest: "retrotransposon" inside "LTR
+    retrotransposon", "enhancer" inside "TE-derived enhancer". Crediting both
+    scores one phrase two or three times over, so only the most specific term
+    matching a given span is counted.
+    """
+    start, end = span
+    width = end - start
+    return any(
+        other_start <= start and end <= other_end and (other_end - other_start) > width
+        for other_start, other_end in spans
+    )
+
+
 class KeywordScorer:
     """
     Scores papers by weighted keyword matching.
 
-    Scoring formula:
-        score = sum over tiers of (weight * title_count * title_multiplier + weight * abstract_count)
+        score = sum over distinct matched terms of (tier weight x field multiplier)
+
+    Each term is credited **at most once per field**, and a term nested inside a
+    longer match is not credited at all. The score therefore measures how many
+    distinct relevant concepts a paper touches, not how often it repeats one of
+    them.
+
+    Crediting every occurrence instead let a single word dominate the digest: in
+    the 2026-08-19 run the top-ranked paper was a telomere/aging study that drew
+    64 of its 72 points from five mentions of "STING", placing it above every
+    transposable-element paper in the corpus.
     """
 
     def __init__(self, config: Config):
@@ -38,35 +66,39 @@ class KeywordScorer:
                 (term, _build_pattern(term)) for term in tier.terms
             ]
 
-    def score(self, paper: Paper) -> float:
-        """Compute a relevance score for a single paper."""
-        title = _normalize(paper.title)
-        abstract = _normalize(paper.abstract)
+    def _field_score(self, text: str, title_field: bool) -> float:
+        """
+        Score one field. Subsumption is resolved across all tiers at once, so a
+        tier-2 "enhancer" nested in a tier-1 "TE-derived enhancer" drops out.
+        """
+        if not text:
+            return 0.0
+
+        matched: List[Tuple[float, List[Span]]] = []
+        for tier_name, tier in self._tiers.items():
+            points = tier.weight * (tier.title_multiplier if title_field else 1.0)
+            for _term, pattern in self._compiled[tier_name]:
+                spans = [m.span() for m in pattern.finditer(text)]
+                if spans:
+                    matched.append((points, spans))
+
+        all_spans = [s for _points, spans in matched for s in spans]
 
         total = 0.0
-        for tier_name, tier in self._tiers.items():
-            compiled = self._compiled.get(tier_name, [])
-            for term, pattern in compiled:
-                title_hits = len(pattern.findall(title))
-                abstract_hits = len(pattern.findall(abstract))
+        for points, spans in matched:
+            # Credit the term when at least one occurrence stands on its own
+            if any(not _subsumed(s, all_spans) for s in spans):
+                total += points
+        return total
 
-                if title_hits > 0:
-                    total += tier.weight * title_hits * tier.title_multiplier
-                if abstract_hits > 0:
-                    total += tier.weight * abstract_hits
-
-        return round(total, 2)
+    def score(self, paper: Paper) -> float:
+        """Compute a relevance score for a single paper."""
+        title = self._field_score(_normalize(paper.title), title_field=True)
+        abstract = self._field_score(_normalize(paper.abstract), title_field=False)
+        return round(title + abstract, 2)
 
     def score_batch(self, papers: List[Paper]) -> List[Paper]:
         """Score all papers in place and return them."""
         for paper in papers:
             paper.keyword_score = self.score(paper)
         return papers
-
-    def filter_and_rank(
-        self, papers: List[Paper], threshold: float = 3.0, top_k: int = 100
-    ) -> List[Paper]:
-        """Score, filter by threshold, and return top_k papers by score."""
-        self.score_batch(papers)
-        filtered = [p for p in papers if p.keyword_score >= threshold]
-        return sorted(filtered, key=lambda p: p.keyword_score, reverse=True)[:top_k]

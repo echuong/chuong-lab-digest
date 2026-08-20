@@ -20,11 +20,8 @@ class Paper:
     url: str
     pmid: Optional[str] = None
     keyword_score: float = 0.0
-    llm_score: float = 0.0
-    llm_explanation: str = ""
-    lay_summary: str = ""  # kept for backward compat
     finding: str = ""      # one-sentence key result (inline display)
-    summary: str = ""      # 2-4 sentence layman summary (detail pane)
+    summary: str = ""      # 3-5 sentence layman summary (detail pane)
 
     @property
     def is_preprint(self) -> bool:
@@ -53,10 +50,7 @@ class Paper:
 
     @property
     def display_score(self) -> float:
-        """LLM score if available, else normalized keyword score."""
-        if self.llm_score > 0:
-            return self.llm_score
-        # Normalize keyword score to 0-10 scale (keyword scores can go up to ~100+)
+        """Keyword score normalized to a 0-10 scale for display."""
         return min(10.0, self.keyword_score / 10.0)
 
     def to_dict(self) -> dict:
@@ -71,9 +65,6 @@ class Paper:
             "url": self.url,
             "pmid": self.pmid,
             "keyword_score": self.keyword_score,
-            "llm_score": self.llm_score,
-            "llm_explanation": self.llm_explanation,
-            "lay_summary": self.lay_summary,
             "finding": self.finding,
             "summary": self.summary,
         }
@@ -91,9 +82,6 @@ class Paper:
             url=d.get("url", ""),
             pmid=d.get("pmid"),
             keyword_score=d.get("keyword_score", 0.0),
-            llm_score=d.get("llm_score", 0.0),
-            llm_explanation=d.get("llm_explanation", ""),
-            lay_summary=d.get("lay_summary", ""),
             finding=d.get("finding", ""),
             summary=d.get("summary", ""),
         )
@@ -105,7 +93,6 @@ class JournalTOC:
     journal_name: str
     papers: List[Paper]
     fetch_date: date
-    total_items: int
     feed_url: str = ""
 
     def to_dict(self) -> dict:
@@ -113,7 +100,6 @@ class JournalTOC:
             "journal_name": self.journal_name,
             "papers": [p.to_dict() for p in self.papers],
             "fetch_date": self.fetch_date.isoformat(),
-            "total_items": self.total_items,
             "feed_url": self.feed_url,
         }
 
@@ -123,7 +109,6 @@ class JournalTOC:
             journal_name=d["journal_name"],
             papers=[Paper.from_dict(p) for p in d.get("papers", [])],
             fetch_date=date.fromisoformat(d["fetch_date"]),
-            total_items=d["total_items"],
             feed_url=d.get("feed_url", ""),
         )
 
@@ -140,6 +125,12 @@ class DigestStats:
     scoring_mode: str = "keyword"
     rss_ok: List[str] = field(default_factory=list)
     pubmed_only: List[str] = field(default_factory=list)
+    # bioRxiv scan coverage. A truncated scan still produces a digest, so this
+    # is the only thing separating "a quiet fortnight" from "the API timed out
+    # halfway through the scan".
+    preprints_scanned: int = 0
+    preprints_available: Optional[int] = None
+    preprint_scan_truncated: bool = False
     executive_summary: str = ""
     topic_groups: Dict[str, List[str]] = field(default_factory=dict)  # topic name → list of DOIs
     topic_groups_resolved: Dict[str, List[Paper]] = field(default_factory=dict)  # resolved for template
@@ -156,6 +147,9 @@ class DigestStats:
             "scoring_mode": self.scoring_mode,
             "rss_ok": self.rss_ok,
             "pubmed_only": self.pubmed_only,
+            "preprints_scanned": self.preprints_scanned,
+            "preprints_available": self.preprints_available,
+            "preprint_scan_truncated": self.preprint_scan_truncated,
             "executive_summary": self.executive_summary,
             "topic_groups": self.topic_groups,
             "journal_summaries": self.journal_summaries,
@@ -173,6 +167,9 @@ class DigestStats:
             scoring_mode=d.get("scoring_mode", "keyword"),
             rss_ok=d.get("rss_ok", []),
             pubmed_only=d.get("pubmed_only", []),
+            preprints_scanned=d.get("preprints_scanned", 0),
+            preprints_available=d.get("preprints_available"),
+            preprint_scan_truncated=d.get("preprint_scan_truncated", False),
             executive_summary=d.get("executive_summary", ""),
             topic_groups=d.get("topic_groups", {}),
             journal_summaries=d.get("journal_summaries", {}),
@@ -213,30 +210,21 @@ class DigestReport:
             "stats": self.stats.to_dict(),
         }
 
-    def to_enrich_dict(self, toc_titles_per_journal: int = 12) -> dict:
+    def to_enrich_dict(self) -> dict:
         """
         Slim view for the AI enrichment step, which needs far less than a re-render.
 
-        The enrichment spec needs full abstracts only for the papers it actually
-        writes about (top_papers + top_preprints). For the per-journal summaries it
-        needs just enough of each table of contents to orient the reader, so those
-        carry title and score and drop abstracts, authors, and identifiers. That is
-        the difference between a ~3 MB file and a ~60 KB one — the full digest JSON
-        is far too large to read into a context window.
+        The enrichment needs full abstracts only for the papers it actually
+        writes about (top_papers + top_preprints); per-journal counts are enough
+        to sanity-check coverage. That is the difference between a ~3 MB file and
+        a ~40 KB one — the full digest JSON is far too large to read into a
+        context window.
         """
-        def _toc_entry(p: "Paper") -> dict:
-            return {"title": p.title, "keyword_score": round(p.keyword_score, 1)}
-
-        tocs = []
-        for t in self.journal_tocs:
-            if not t.papers:
-                continue
-            ranked = sorted(t.papers, key=lambda p: -(p.keyword_score or 0))
-            tocs.append({
-                "journal_name": t.journal_name,
-                "paper_count": len(t.papers),
-                "top_titles": [_toc_entry(p) for p in ranked[:toc_titles_per_journal]],
-            })
+        tocs = [
+            {"journal_name": t.journal_name, "paper_count": len(t.papers)}
+            for t in self.journal_tocs
+            if t.papers
+        ]
 
         return {
             "generated_date": self.generated_date.isoformat(),
@@ -278,7 +266,6 @@ class DigestReport:
                 journal_name=td["journal_name"],
                 papers=toc_papers,
                 fetch_date=date.fromisoformat(td["fetch_date"]),
-                total_items=td["total_items"],
                 feed_url=td.get("feed_url", ""),
             ))
 

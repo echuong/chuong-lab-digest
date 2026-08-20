@@ -1,11 +1,10 @@
 """PubMed/NCBI Entrez source for journal papers and abstract enrichment."""
 from __future__ import annotations
 
-import hashlib
 import time
 import xml.etree.ElementTree as ET
 from datetime import date
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import requests
 from dateutil import parser as dateparser
@@ -90,9 +89,7 @@ def _parse_pubmed_article(article_elem) -> Optional[Paper]:
 
         # DOI
         doi = ""
-        id_list = medline.find("../PubmedData/ArticleIdList")
-        if id_list is None:
-            id_list = article_elem.find(".//ArticleIdList")
+        id_list = article_elem.find(".//ArticleIdList")
         if id_list is not None:
             for aid in id_list.findall("ArticleId"):
                 if aid.get("IdType") == "doi":
@@ -151,13 +148,18 @@ class PubMedSource:
             print(f"    PubMed esearch error: {e}")
             return []
 
-    def _efetch(self, pmids: List[str]) -> List[Paper]:
-        """Fetch full records for a list of PMIDs."""
+    def _efetch(self, pmids: List[str], attempts: int = 3) -> List[Paper]:
+        """
+        Fetch full records for a list of PMIDs, in batches of 100.
+
+        Each batch is retried on failure: NCBI returns intermittent 502s, and a
+        dropped batch silently costs up to 100 papers from that journal. One 502
+        cost Science Advances 17 papers in a 2026-08-19 run.
+        """
         if not pmids:
             return []
 
         papers = []
-        # Fetch in batches of 100
         batch_size = 100
         for i in range(0, len(pmids), batch_size):
             batch = pmids[i : i + batch_size]
@@ -170,17 +172,22 @@ class PubMedSource:
             if self._api_key:
                 params["api_key"] = self._api_key
 
-            try:
-                resp = self._session.post(BASE_EFETCH, data=params, timeout=30)
-                resp.raise_for_status()
-                root = ET.fromstring(resp.content)
-                for article_elem in root.findall("PubmedArticle"):
-                    paper = _parse_pubmed_article(article_elem)
-                    if paper:
-                        papers.append(paper)
-                time.sleep(self._delay)
-            except Exception as e:
-                print(f"    PubMed efetch error (batch {i}): {e}")
+            for attempt in range(1, attempts + 1):
+                try:
+                    resp = self._session.post(BASE_EFETCH, data=params, timeout=30)
+                    resp.raise_for_status()
+                    root = ET.fromstring(resp.content)
+                    for article_elem in root.findall("PubmedArticle"):
+                        paper = _parse_pubmed_article(article_elem)
+                        if paper:
+                            papers.append(paper)
+                    time.sleep(self._delay)
+                    break
+                except Exception as e:
+                    if attempt == attempts:
+                        print(f"    PubMed efetch FAILED (batch {i}, {len(batch)} papers lost): {e}")
+                    else:
+                        time.sleep(self._delay * 2 * attempt)
 
         return papers
 
@@ -236,15 +243,3 @@ class PubMedSource:
 
         return papers
 
-    def search_classics(
-        self,
-        topic_query: str,
-        since: date,
-        until: date,
-        max_results: int = 100,
-    ) -> List[Paper]:
-        """
-        Search for high-relevance papers in a 3–12 month lookback window.
-        Useful for 'classics you might have missed'.
-        """
-        return self.search_topic(topic_query, since, until, max_results)

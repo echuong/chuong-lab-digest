@@ -1,9 +1,8 @@
 # Ephemeral working output — the durable HTML archive lives in site/
 reports/
 
-# SQLite cache: RSS ETags + paper records only. Nothing in the pipeline reads it
-# back to gate output (was_included_in_report is never called), so it is safe to
-# regenerate from scratch on every cloud run.
+# The pipeline no longer has a cache (lit_review/cache.py was removed 2026-08-19).
+# Kept ignored so a stale directory from an older checkout is never committed.
 cache/
 
 # Local-only / not for the public site
